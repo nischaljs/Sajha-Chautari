@@ -14,3 +14,12 @@ export const userUpdateSchema:ZodSchema = z.object ( {
 })
 
 export type userUpdateType = z.infer<typeof userUpdateSchema>
+
+
+export const createSpaceSchema = z.object({
+    name:z.string(),
+    mapId : z.string(),
+    capacity :z.number()
+})
+
+export type createSpaceType = z.infer<typeof createSpaceSchema>

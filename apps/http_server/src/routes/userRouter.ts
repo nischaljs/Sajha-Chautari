@@ -1,6 +1,6 @@
 import express from 'express';
 import authmiddleware from '../middlewares/authmiddleware';
-import { getAvatarsController, getMultipleUsersProfileController, profileUpdateController } from '../controllers/user.controllers';
+import { getAvatarsController, getMultipleUsersProfileController, profileUpdateController } from '../controllers/user.controller';
 
 const userRouter = express.Router();
 
