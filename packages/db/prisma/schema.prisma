@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String  @id @default(cuid())
+  email         String  @unique
+  password      String
+  nickname      String
+  avatarId      String? @unique
+  spaces        Space[] @relation("UserSpaces")
+  avatar        Avatar? @relation("UserAvatar", fields: [avatarId], references: [id])
+  createdSpaces Space[] @relation("Creator")
+  role          Role
+}
+
+model Avatar {
+  id       String  @id @default(cuid())
+  imageUrl String?
+  name     String?
+  users    User[]  @relation("UserAvatar")
+}
+
+model Space {
+  id        String         @id @default(cuid())
+  name      String
+  mapId     String
+  capacity  Int
+  users     User[]         @relation("UserSpaces")
+  creatorId String
+  creator   User           @relation("Creator", fields: [creatorId], references: [id], onDelete: Cascade)
+  map       Map            @relation("MapSpaces", fields: [mapId], references: [id])
+  elements  SpaceElement[] @relation("SpaceElements")
+}
+
+model SpaceElement {
+  id        String  @id @default(cuid())
+  elementId String
+  element   Element @relation("ElementSpaceElements", fields: [elementId], references: [id], onDelete: Cascade)
+  spaceId   String
+  space     Space   @relation("SpaceElements", fields: [spaceId], references: [id], onDelete: Cascade)
+  x         Int
+  y         Int
+}
+
+model Element {
+  id            String         @id @default(cuid())
+  width         Int
+  height        Int
+  imageUrl      String
+  static        Boolean
+  mapElements   MapElement[]   @relation("ElementMapElements")
+  spaceElements SpaceElement[] @relation("ElementSpaceElements")
+}
+
+model Map {
+  id          String       @id @default(cuid())
+  width       Int
+  height      Int
+  name        String
+  mapElements MapElement[] @relation("MapElements")
+  spaces      Space[]      @relation("MapSpaces")
+}
+
+model MapElement {
+  id        String  @id @default(cuid())
+  mapId     String
+  map       Map     @relation("MapElements", fields: [mapId], references: [id], onDelete: Cascade)
+  elementId String
+  element   Element @relation("ElementMapElements", fields: [elementId], references: [id], onDelete: Cascade)
+  x         Int
+  y         Int
+}
+
+enum Role {
+  Admin
+  Creator
+  User
+}
