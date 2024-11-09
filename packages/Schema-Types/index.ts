@@ -23,3 +23,12 @@ export const createSpaceSchema = z.object({
 })
 
 export type createSpaceType = z.infer<typeof createSpaceSchema>
+
+
+export const addELementSchema = z.object({
+    elementId:z.string(),
+    x:z.number(),
+    y:z.number()
+})
+
+export type addElementType = z.infer<typeof addELementSchema>
