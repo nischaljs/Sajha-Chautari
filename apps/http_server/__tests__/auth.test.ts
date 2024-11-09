@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 describe("User Registration and Login", () => {
     const email = Math.random() + "-user@example.com";
     const password = "securePassword123";

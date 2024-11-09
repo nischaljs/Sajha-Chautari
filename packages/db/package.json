@@ -1,6 +1,7 @@
 {
   "name": "@repo/db",
   "version": "1.0.0",
+  "main":"index.ts",
   "scripts": {
     "db:generate": "prisma generate",
     "db:push": "prisma db push --skip-generate"
@@ -16,6 +17,6 @@
   },
   "exports": {
 
-    ".": "./src/index.ts"
+    ".": "./index.ts"
   } 
 }
