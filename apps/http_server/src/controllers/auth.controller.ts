@@ -40,7 +40,7 @@ export const registerController = async (req: Request, res: Response, next: Next
       }
     })
 
-    const token = generateJWTToken({ userId: user.id });
+    const token = generateJWTToken({ userId: user.id , role:user.role });
 
     res.status(HttpStatusCode.Created).json(new SuccessResponse("User created succesfully", { token }))
 
@@ -78,7 +78,7 @@ export const loginController = async (req: Request, res: Response, next: NextFun
     }
 
 
-    const token = generateJWTToken({ userId: user.id });
+    const token = generateJWTToken({ userId: user.id, role:user.role });
 
 
     res.status(HttpStatusCode.Ok).json({ success: true, message: 'Login successful', data: { token } });

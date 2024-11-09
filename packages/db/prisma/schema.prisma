@@ -50,6 +50,7 @@ model SpaceElement {
 
 model Element {
   id            String         @id @default(cuid())
+  name          String
   width         Int
   height        Int
   imageUrl      String
