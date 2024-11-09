@@ -8,7 +8,7 @@ import { AppError } from "../utils/AppError";
 export const getArenaDetailsController = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const spaceId = req.params?.spaceId;
-        const arenaDetail = prisma.space.findFirst({
+        const arenaDetail = await prisma.space.findFirst({
             where: {
                 id: spaceId
             },
@@ -32,7 +32,7 @@ export const addElementsToArenaController = async (req: Request, res: Response, 
         if (!element.success) {
             throw new AppError(HttpStatusCode.BadRequest, "Invalid element Data");
         }
-        const space = prisma.space.findFirst({
+        const space = await prisma.space.findFirst({
             where: {
                 id: spaceId
             },
@@ -41,7 +41,13 @@ export const addElementsToArenaController = async (req: Request, res: Response, 
                     select: {
                         id: true
                     }
-                }
+                },
+                map: {
+                    include: {
+                        mapElements: true
+                    }
+                },
+                elements: true
             }
         })
 
@@ -52,6 +58,18 @@ export const addElementsToArenaController = async (req: Request, res: Response, 
         if (creator?.id !== userId) {
             throw new AppError(HttpStatusCode.Forbidden, 'You are not the creator of this space');
         }
+
+        const isPositionOccupied = [
+            ...space.map.mapElements,  
+            ...space.elements          
+        ].some(
+            elem => elem.x === element.data.x && elem.y === element.data.y
+        );
+
+        if (isPositionOccupied) {
+            throw new AppError(HttpStatusCode.Conflict, `An element already exists at coordinates (${element.data.x}, ${element.data.y})`);
+        }
+
         const spaceElement = await prisma.spaceElement.create({
             data: {
                 spaceId: spaceId,
@@ -76,7 +94,7 @@ export const RemoveElementController = async (req: Request, res: Response, next:
         const elementId = req.params.elementId;
         const userId = req.userId;
 
-        const space = prisma.space.findFirst({
+        const space = await prisma.space.findFirst({
             where: {
                 id: spaceId
             },
@@ -97,13 +115,13 @@ export const RemoveElementController = async (req: Request, res: Response, next:
             throw new AppError(HttpStatusCode.Forbidden, 'You are not the creator of this space');
         }
 
-        const elementDeleted = prisma.spaceElement.delete({
+        const elementDeleted = await prisma.spaceElement.delete({
             where: {
                 id: elementId
             }
         })
 
-        res.status(HttpStatusCode.NoContent).json(new SuccessResponse("ELement Created Successfully",elementDeleted));
+        res.status(HttpStatusCode.NoContent).json(new SuccessResponse("ELement Created Successfully", elementDeleted));
     } catch (error) {
         next(error);
     }
@@ -111,22 +129,22 @@ export const RemoveElementController = async (req: Request, res: Response, next:
 
 
 
-export const GetAvailableElementsController = async(req:Request, res:Response, next:NextFunction)=>{
-try {
-    const spaceId = req.params.spaceId;
+export const GetAvailableElementsController = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const spaceId = req.params.spaceId;
 
-    if(!spaceId){
-        throw new AppError(HttpStatusCode.BadRequest,"No space found")
-    }
-    const elements = prisma.spaceElement.findMany({
-        where:{
-            spaceId:spaceId
-        },
-        include:{
-            element:true
+        if (!spaceId) {
+            throw new AppError(HttpStatusCode.BadRequest, "No space found")
         }
-    })
-} catch (error) {
-    next(error)
-}
+        const elements = await prisma.spaceElement.findMany({
+            where: {
+                spaceId: spaceId
+            },
+            include: {
+                element: true
+            }
+        })
+    } catch (error) {
+        next(error)
+    }
 }

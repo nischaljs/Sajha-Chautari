@@ -12,7 +12,7 @@ export const addElements = async (req:Request, res:Response, next:NextFunction)=
             throw new AppError(HttpStatusCode.BadRequest,"Invalid element Data");
         }
         const element = data.data;
-        const createdElement = prisma.element.create({
+        const createdElement = await prisma.element.create({
             data:{
                 name:element.name,
                 imageUrl:element.imageUrl,
@@ -54,7 +54,7 @@ export const createAvatar = async(req:Request, res:Response, next:NextFunction)=
         if(!parsedData.success){
             throw new AppError(HttpStatusCode.BadRequest,"Invalid avatar Data");
         }
-        const createdAvatar = prisma.avatar.create({
+        const createdAvatar = await prisma.avatar.create({
             data:{
                 name:parsedData.data.name,
                 imageUrl:parsedData.data.imageUrl
@@ -93,16 +93,43 @@ export const createMapController = async(req:Request, res:Response,next:NextFunc
 }
 
 
-
-export const addMapElementsControllers = async( req:Request, res:Response,next:NextFunction) =>{
+export const addMapElementsControllers = async (req: Request, res: Response, next: NextFunction) => {
     try {
+        
         const parsedData = addMapElementSchema.safeParse(req.body);
-        if(!parsedData.success){
-            throw new AppError(HttpStatusCode.BadRequest,"Invalid data input");
+        if (!parsedData.success) {
+            throw new AppError(HttpStatusCode.BadRequest, "Invalid data input");
         }
+
+        
+        const mapExists = await prisma.map.findUnique({ where: { id: parsedData.data.mapId } });
+        if (!mapExists) {
+            throw new AppError(HttpStatusCode.BadRequest, `Map with ID ${parsedData.data.mapId} does not exist.`);
+        }
+
+        
         const mapElements = await Promise.all(
             parsedData.data.defaultElements.map(async (elem) => {
-                return prisma.mapElement.create({
+                
+                const existingElement = await prisma.mapElement.findFirst({
+                    where: {
+                        mapId: parsedData.data.mapId,
+                        x: elem.x,
+                        y: elem.y
+                    }
+                });
+
+                if (existingElement) {
+                    
+                    return {
+                        success: false,
+                        message: `An element already exists at coordinates (${elem.x}, ${elem.y})`,
+                        element: elem
+                    };
+                }
+
+                
+                const newElement = await prisma.mapElement.create({
                     data: {
                         mapId: parsedData.data.mapId,
                         elementId: elem.elementId,
@@ -110,11 +137,19 @@ export const addMapElementsControllers = async( req:Request, res:Response,next:N
                         y: elem.y
                     }
                 });
+
+                return {
+                    success: true,
+                    message: 'Element created successfully',
+                    element: newElement
+                };
             })
         );
+
         
-        res.status(HttpStatusCode.Created).json(new SuccessResponse("Elements added to map",mapElements));
+        res.status(HttpStatusCode.Ok).json(new SuccessResponse("Elements processed", mapElements));
+
     } catch (error) {
-        next(error);
+        next(error);  
     }
-}
+};

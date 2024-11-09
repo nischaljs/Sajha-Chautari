@@ -40,7 +40,7 @@ export const profileUpdateController = async (req: Request, res: Response, next:
 
 export const getAvatarsController = (req: Request, res: Response, next: NextFunction) => {
     try {
-        const avatars = prisma.avatar.findMany();
+        const avatars = await prisma.avatar.findMany();
         res.status(HttpStatusCode.Ok).json(new SuccessResponse("Available avatars retrieved successfully", avatars));
     } catch (error) {
         next(error);
