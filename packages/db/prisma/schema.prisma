@@ -64,6 +64,8 @@ model Map {
   width       Int
   height      Int
   name        String
+  dropX       Int
+  dropY       Int
   thumbnail   String
   mapElements MapElement[] @relation("MapElements")
   spaces      Space[]      @relation("MapSpaces")

@@ -12,7 +12,7 @@ export function createSocketServer(httpServer: any) {
 
   // Handle new connections
   io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log(`User connected: ${socket.id}, http route  id : ${socket.data.userId}, joined spaceId : ${socket.data.spaceId}`);
 
 
 

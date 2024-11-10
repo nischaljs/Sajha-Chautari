@@ -53,7 +53,9 @@ export const createMapSchema = z.object({
     name:z.string(),
     thumbnail:z.string(),
     width:z.number(),
-    height:z.number()
+    height:z.number(),
+    dropX: z.number(),
+    dropY:z.number()
 })
 
 const elementSchema = z.object({

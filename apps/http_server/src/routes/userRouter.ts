@@ -1,6 +1,6 @@
 import express from 'express';
+import { getAvatarsController, getUserProfile, profileUpdateController } from '../controllers/user.controller';
 import authmiddleware from '../middlewares/authmiddleware';
-import { getAvatarsController, getMultipleUsersProfileController, profileUpdateController } from '../controllers/user.controller';
 
 const userRouter = express.Router();
 
@@ -10,7 +10,7 @@ userRouter.put('/profile',profileUpdateController);
 
 userRouter.get('/avatars',getAvatarsController);
 
-userRouter.get('/profiles',getMultipleUsersProfileController)
+userRouter.get('/profiles',getUserProfile)
 
 
 

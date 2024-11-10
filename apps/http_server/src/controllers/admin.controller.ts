@@ -1,4 +1,4 @@
-import { addElementAdminSchema, addMapElementSchema, createAvtarSchema, createMapSchema } from "@repo/schematype";
+import { addElementAdminSchema, addMapElementSchema, createAvtarSchema,createMapSchema } from "@repo/schematype";
 import { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/AppError";
 import { HttpStatusCode } from "axios";
@@ -82,7 +82,9 @@ export const createMapController = async(req:Request, res:Response,next:NextFunc
                 name:mapData.name,
                 thumbnail:mapData.thumbnail,
                 height:mapData.height,
-                width:mapData.width
+                width:mapData.width,
+                dropX:mapData.dropX,
+                dropY:mapData.dropY
             }
         })
 

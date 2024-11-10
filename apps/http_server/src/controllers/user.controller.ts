@@ -48,37 +48,43 @@ export const getAvatarsController = async (req: Request, res: Response, next: Ne
 }
 
 
-export const getMultipleUsersProfileController = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const profileIds: string[] = Array.isArray(req.query.ids)
-            ? req.query.ids as string[] 
-            : req.query.ids
-                ? [req.query.ids as string]
-                : [];
+        const userId = req.userId;
+        const spaceId = req.body.spaceId;
 
-        const profiles = await Promise.all(
-            profileIds.map(async (uid) => {
-                return await prisma.user.findFirst({
-                    where: {
-                        id: uid
-                    },
+        const userdata = await prisma.user.findUnique({
+            where: {
+                id: userId
+            },
+            include: {
+                avatar: {
                     select: {
-                        id: true,
-                        nickname: true,
-                        avatar: {
-                            select: {
-                                imageUrl: true
-                            }
-                        }
+                        imageUrl: true
                     }
-                });
-            })
-        );
+                }
+            }
+        })
+        const spaceData = await prisma.space.findFirst({
+            where: {
+                id: spaceId
+            },
+            include: {
+                map: {
+                    select: {
+                        dropX: true,
+                        dropY: true
+                    }
+                }
+            }
+        })
 
-
-        const data = profiles.filter(profile => profile !== null);
-
-        res.status(200).json(new SuccessResponse('User profiles retrieved successfully', data));
+        res.status(200).json(new SuccessResponse('User profiles retrieved successfully', {
+            avatar: userdata?.avatar?.imageUrl,
+            nickname: userdata?.nickname,
+            positionX: spaceData?.map.dropX,
+            positionY: spaceData?.map.dropY
+        }));
     } catch (error) {
         next(error);
     }

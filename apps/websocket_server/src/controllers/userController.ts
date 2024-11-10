@@ -3,24 +3,41 @@ import { userService } from "../services/userService";
 
 
 export const roomUsers: Record<string, Set<string>> = {};
+export const userStates: Record<string, Map<string, { avatar: string, nickname: string, position: { x: number, y: number }, }>> = {};
 
-export function onUserConnected(socket: Socket, io: Server) {
+export async function onUserConnected(socket: Socket, io: Server) {
     try {
         const spaceId = socket.data.spaceId;
+        const userId = socket.data.userId;
+
         socket.join(spaceId);
 
         if (!roomUsers[spaceId]) {
             roomUsers[spaceId] = new Set();
+            userStates[spaceId] = new Map();
         }
-        roomUsers[spaceId].add(socket.data.userId);
+
+
+        roomUsers[spaceId].add(userId);
 
         //TODO: user jasle join garxa usel chei aafnu avatar haru brodcast garxa ra rule le chei just teslai plot garxan thisway when the one new user joins areu le pheri http server hit garnu pardaina
 
-        const users = userService.getUserDetails(roomUsers[spaceId]);
+        const user = await userService.getUserDetails(userId);
+
+        userStates[spaceId].set(userId, {
+            avatar: user?.avatar || "",
+            nickname: user?.nickname || "Guest",
+            position: { x: user?.positionX, y: user?.positionY }
+        });
+
+        const users = Array.from(userStates[spaceId].values());
+        socket.emit('initialize_space', { success: true, users });
+
+
         io.to(spaceId).emit('join_space', {
             success: true,
             id: socket.id,
-            users: users
+            users: { userId, avatar: user.avatar, position: { x: user?.positionX, y: user?.positionY } }
         })
     } catch (error) {
         socket.emit('join_space', {
