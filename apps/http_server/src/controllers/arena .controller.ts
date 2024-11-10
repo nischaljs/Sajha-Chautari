@@ -60,8 +60,8 @@ export const addElementsToArenaController = async (req: Request, res: Response, 
         }
 
         const isPositionOccupied = [
-            ...space.map.mapElements,  
-            ...space.elements          
+            ...space.map.mapElements,
+            ...space.elements
         ].some(
             elem => elem.x === element.data.x && elem.y === element.data.y
         );
@@ -150,40 +150,54 @@ export const GetAvailableElementsController = async (req: Request, res: Response
 }
 
 
-export const checkPositionController = async (req:Request, res:Response, next:NextFunction) =>{
+export const checkPositionController = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const x = req.query.x ? parseInt(req.query.x as string) : NaN;
         const y = req.query.y ? parseInt(req.query.y as string) : NaN;
-        const spaceId = req.body.spaceId
+        const width = req.query.width ? parseInt(req.query.width as string) : 1; 
+        const height = req.query.height ? parseInt(req.query.height as string) : 1; 
+        const spaceId = req.body.spaceId;
 
         const space = await prisma.space.findFirst({
-            where: {
-                id: spaceId
-            },
+            where: { id: spaceId },
             include: {
                 map: {
                     include: {
-                        mapElements: true
+                        mapElements: {
+                            include: { element: true }
+                        }
                     }
                 },
-                elements: true
+                elements: { include: { element: true } }
             }
-        })
+        });
 
-        if(!space){
-            throw new AppError(HttpStatusCode.BadRequest,"Such space doesn't exist")
+        if (!space) {
+            throw new AppError(HttpStatusCode.BadRequest, "Such space doesn't exist");
         }
 
-        const isPositionOccupied = [
-            ...space.map.mapElements,  
-            ...space.elements          
-        ].some(
-            elem => elem.x === x && elem.y === y
-        );
+       
+        let isPositionOccupied = [
+            ...space.map.mapElements,
+            ...space.elements
+        ].some(elem => {
+            const elemRight = elem.x + elem.element.width;
+            const elemBottom = elem.y + elem.element.height;
+            const newRight = x + width;
+            const newBottom = y + height;
 
-        res.status(HttpStatusCode.Ok).json(new SuccessResponse('Position detail obtained',isPositionOccupied))
+            
+            return (
+                x < elemRight &&
+                newRight > elem.x &&
+                y < elemBottom &&
+                newBottom > elem.y
+            );
+        });
+
+        res.status(HttpStatusCode.Ok).json(new SuccessResponse('Position detail obtained', isPositionOccupied));
 
     } catch (error) {
         next(error);
     }
-}
+};
