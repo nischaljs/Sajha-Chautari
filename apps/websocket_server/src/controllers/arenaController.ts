@@ -1,12 +1,15 @@
 import { Server, Socket } from 'socket.io';
 import api from '../services/api';
 import { userService } from '../services/userService';
+import { userStates } from './userController';
 
 export function handleMovement(socket: Socket, io: Server) {
     socket.on('movement', async (newPosition: { x: number; y: number }) => {
         try {
 
             const isOccupied = await checkPositionAvailability(newPosition);
+            const spaceId = socket.data.SpaceId;
+            const userId = socket.data.userId;
 
             if (isOccupied) {
                 socket.emit('movementResult', {
@@ -19,6 +22,16 @@ export function handleMovement(socket: Socket, io: Server) {
                 io.to(socket.data.spaceId).emit('movementResult', {
                     success: true,
                     newCoordinates: newPosition,
+                });
+
+                const previousData = userStates[spaceId].get(userId) || {
+                    avatar:"",
+                    nickname: ""
+                };
+
+                userStates[spaceId].set(userId, {
+                    ...previousData,
+                    position: { x: newPosition.x, y: newPosition.y }
                 });
             }
         } catch (error) {
