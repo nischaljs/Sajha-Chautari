@@ -1,11 +1,11 @@
 import api from './api';
 
 export const userService = {
-  async getUserDetails(userIds:  Set<string>): Promise<any> {
+  async getUserDetails(userIds: Set<string>): Promise<any> {
     try {
-      
-      const response = await api.get('user/profiles',{
-        params:{
+
+      const response = await api.get('user/profiles', {
+        params: {
           ids: userIds
         }
       });

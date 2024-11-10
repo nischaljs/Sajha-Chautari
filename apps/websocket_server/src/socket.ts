@@ -1,8 +1,8 @@
 import { Server } from 'socket.io';
-import { authMiddleware } from './middlewares/authMiddleware';
+import { socketConfig } from './config/socketConfig';
 import * as arenaController from './controllers/arenaController';
 import * as userController from './controllers/userController';
-import { socketConfig } from './config/socketConfig';
+import { authMiddleware } from './middlewares/authMiddleware';
 
 export function createSocketServer(httpServer: any) {
   const io = new Server(httpServer, socketConfig);
@@ -14,7 +14,7 @@ export function createSocketServer(httpServer: any) {
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    
+
 
 
     userController.onUserConnected(socket, io);
