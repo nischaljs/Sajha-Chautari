@@ -87,3 +87,14 @@ export const loginController = async (req: Request, res: Response, next: NextFun
     next(err); 
   }
 };
+
+
+
+
+export const tokenVerifierController = (req:Request, res:Response, next:NextFunction) =>{
+  try {
+    res.status(HttpStatusCode.Ok).json(new SuccessResponse("authenticated succesffuly",{}));
+  } catch (error) {
+    next(error);
+  }
+}

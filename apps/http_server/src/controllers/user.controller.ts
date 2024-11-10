@@ -50,20 +50,24 @@ export const getAvatarsController = async (req: Request, res: Response, next: Ne
 
 export const getMultipleUsersProfileController = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const profileIds: Array<string> = req.params?.ids?.split(",");  
-        
+        const profileIds: string[] = Array.isArray(req.query.ids)
+            ? req.query.ids as string[] 
+            : req.query.ids
+                ? [req.query.ids as string]
+                : [];
+
         const profiles = await Promise.all(
             profileIds.map(async (uid) => {
                 return await prisma.user.findFirst({
                     where: {
                         id: uid
                     },
-                    select:{
-                        id:true,
-                        nickname:true,
-                        avatar:{
-                            select:{
-                                imageUrl:true
+                    select: {
+                        id: true,
+                        nickname: true,
+                        avatar: {
+                            select: {
+                                imageUrl: true
                             }
                         }
                     }
@@ -71,10 +75,10 @@ export const getMultipleUsersProfileController = async (req: Request, res: Respo
             })
         );
 
-        
+
         const data = profiles.filter(profile => profile !== null);
 
-        res.status(200).json(new SuccessResponse('User profiles retrieved successfully',data));
+        res.status(200).json(new SuccessResponse('User profiles retrieved successfully', data));
     } catch (error) {
         next(error);
     }

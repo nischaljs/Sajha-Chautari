@@ -148,3 +148,42 @@ export const GetAvailableElementsController = async (req: Request, res: Response
         next(error)
     }
 }
+
+
+export const checkPositionController = async (req:Request, res:Response, next:NextFunction) =>{
+    try {
+        const x = req.query.x ? parseInt(req.query.x as string) : NaN;
+        const y = req.query.y ? parseInt(req.query.y as string) : NaN;
+        const spaceId = req.body.spaceId
+
+        const space = await prisma.space.findFirst({
+            where: {
+                id: spaceId
+            },
+            include: {
+                map: {
+                    include: {
+                        mapElements: true
+                    }
+                },
+                elements: true
+            }
+        })
+
+        if(!space){
+            throw new AppError(HttpStatusCode.BadRequest,"Such space doesn't exist")
+        }
+
+        const isPositionOccupied = [
+            ...space.map.mapElements,  
+            ...space.elements          
+        ].some(
+            elem => elem.x === x && elem.y === y
+        );
+
+        res.status(HttpStatusCode.Ok).json(new SuccessResponse('Position detail obtained',isPositionOccupied))
+
+    } catch (error) {
+        next(error);
+    }
+}
