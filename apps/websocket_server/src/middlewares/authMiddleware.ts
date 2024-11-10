@@ -1,11 +1,17 @@
 import { Socket } from 'socket.io';
 import api from '../services/api';
 
+let token = '' ;
+let spaceId ='';
 export function authMiddleware(socket: Socket, next: (err?: Error) => void) {
-  const token = socket.handshake.auth.token;
+   token = socket.handshake.auth.token;
+   spaceId = socket.handshake.auth.spaceId;
 
-  isValidToken(token).then((isValid) => {
-    if (isValid) {
+
+  isValidTokenAndSpace().then((isValid) => {
+    if (isValid.bool) {
+      socket.data.userId = isValid.userId;
+      socket.data.spaceId = spaceId;
       next(); 
     } else {
       const error = new Error('Unauthorized');
@@ -17,20 +23,24 @@ export function authMiddleware(socket: Socket, next: (err?: Error) => void) {
   });
 }
 
+export {token, spaceId};
 
-// Mock function to check token validity
- async function isValidToken(token: string): Promise<boolean> {
+
+
+ async function isValidTokenAndSpace(): Promise<{bool:boolean,userId:string|null}> {
   try {
-    const response = await api('/auth/valid-token', 
+    const response = await api.post('/spaces/join-space',{
+      spaceId:spaceId
+    } 
     );
 
     if (!response.data.success) {
-      return false;
+      return {bool:false, userId : null};
     }
-
-    return true;
+    
+    return {bool:true, userId : response?.data?.data?.user?.id};
   } catch (error) {
     console.error('Error during token validation:', error);
-    return false;
+    return {bool:false, userId : null};
   }
 }

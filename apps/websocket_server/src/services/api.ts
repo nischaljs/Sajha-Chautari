@@ -1,4 +1,5 @@
 import axios from "axios";
+import { spaceId, token } from "../middlewares/authMiddleware";
 
 const baseURL = process.env.HTTP_BASE_URL;
 const api = axios.create({
@@ -7,8 +8,6 @@ const api = axios.create({
 
 api.interceptors.request.use(
     function (config) {
-        const token = localStorage.getItem('token');
-        const spaceId = localStorage.getItem('spaceId');
         if (token && spaceId) {
             config.headers['Authorization'] = `Bearer ${token}`;
             config.data.spaceId = spaceId;

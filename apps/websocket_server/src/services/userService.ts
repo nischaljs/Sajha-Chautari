@@ -1,7 +1,7 @@
 import api from './api';
 
 export const userService = {
-  async getUserDetails(userIds: string[]): Promise<any> {
+  async getUserDetails(userIds:  Set<string>): Promise<any> {
     try {
       
       const response = await api.get('user/profiles',{

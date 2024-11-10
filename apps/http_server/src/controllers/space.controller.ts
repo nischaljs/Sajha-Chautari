@@ -5,6 +5,8 @@ import { AppError } from "../utils/AppError";
 import prisma from "../utils/prismaClient";
 
 
+
+
 export const createSpaceRouter = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const parsedData = createSpaceSchema.safeParse(req.body);
@@ -81,6 +83,54 @@ export const getUserSpaces = async(req:Request, res:Response, next:NextFunction)
             }
         })
         res.status(HttpStatusCode.Ok).json(new SuccessResponse("User's virtual spaces retrieved successfully",userSpaces));
+    } catch (error) {
+        next(error);
+    }
+}
+
+
+export const joinSpaceController = async(req:Request, res:Response, next:NextFunction)=>{
+    try {
+        const spaceId = req.body.spaceId;
+        const userId = req.userId;
+
+        const userresponse = await prisma.user.findUnique({
+            where:{
+                id:userId,
+            },
+            include:{
+                spaces:true
+            }
+        })
+
+        if(!userresponse){
+            throw new AppError(HttpStatusCode.BadRequest,"User is unknown");
+        }
+
+        const spaceResponse = await prisma.space.findUnique({
+            where:{
+                id:spaceId
+            }
+        })
+
+        if(!spaceResponse){
+            throw new AppError(HttpStatusCode.BadRequest,"No space found");
+        }
+
+
+
+       const user = await prisma.user.update({
+            where:{
+                id:userId
+            },
+            data:{
+                spaces: {
+                    connect: { id: spaceId }
+                }
+            }
+        })
+
+        res.status(HttpStatusCode.Ok).json(new SuccessResponse("user entered the space",user))
     } catch (error) {
         next(error);
     }
