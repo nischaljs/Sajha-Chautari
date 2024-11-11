@@ -167,3 +167,13 @@ export const joinSpaceController = async (
     next(error);
   }
 };
+
+
+export const getAllMaps = async(req:Request, res:Response, next:NextFunction) =>{
+  try {
+    const AllMaps = await prisma.map.findMany();
+    res.status(HttpStatusCode.Ok).json(new SuccessResponse("all maps retrieved", AllMaps));
+  } catch (error) {
+    next(error);
+  }
+}

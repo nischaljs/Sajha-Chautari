@@ -23,10 +23,12 @@ function authmiddleware() {
       }
       const decoded = verify(token, JWT_SECRET) as {
         userId: string;
-        userRole: role;
+        role: role;
       };
+      console.log("decoded string", decoded)
       req.userId = decoded.userId;
-      req.userRole = decoded.userRole;
+      req.userRole = decoded.role;
+      console.log("the user is a ", req.userRole)
       next();
     } catch (error) {
       next(error);

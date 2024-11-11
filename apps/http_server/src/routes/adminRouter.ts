@@ -13,11 +13,17 @@ const adminRouter = express.Router();
 
 adminRouter.use(authmiddleware());
 adminRouter.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.userRole != role.Admin)
+  console.log(req.userRole);
+  console.log(role.Admin);
+  console.log(typeof(req.userRole), typeof(role[role.Admin]));
+  if (!req.userRole || String(req.userRole) !== role[role.Admin]) {
     throw new AppError(
       HttpStatusCode.Unauthorized,
       "You are not authorized to access this route",
     );
+  } else {
+    next();
+  }
 });
 
 adminRouter.post("/elements");

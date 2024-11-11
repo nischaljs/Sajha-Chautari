@@ -2,6 +2,7 @@ import express from "express";
 import {
   createSpaceRouter,
   deleteSpace,
+  getAllMaps,
   getUserSpaces,
   joinSpaceController,
 } from "../controllers/space.controller";
@@ -15,5 +16,6 @@ spaceRouter.post("/", createSpaceRouter);
 spaceRouter.delete("/", deleteSpace);
 spaceRouter.get("/", getUserSpaces);
 spaceRouter.post("/join-space", joinSpaceController);
+spaceRouter.get('/maps',getAllMaps);
 
 export default spaceRouter;
