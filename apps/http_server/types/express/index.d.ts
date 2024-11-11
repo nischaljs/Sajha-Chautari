@@ -1,4 +1,4 @@
-import { role } from '../../src/middlewares/authmiddleware';
+import { role } from "../../src/middlewares/authmiddleware";
 
 declare global {
   namespace Express {

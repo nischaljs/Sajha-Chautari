@@ -84,10 +84,12 @@ describe("User Route Tests", () => {
         nickname: "a", // Invalid nickname, too short
         avatarId: "invalid-avatar-id",
       });
-    } catch (error : any) {
+    } catch (error: any) {
       expect(error.response.status).toBe(400);
       expect(error.response.data.success).toBe(false);
-      expect(error.response.data.errors).toContain("Nickname must be between 3 and 20 characters");
+      expect(error.response.data.errors).toContain(
+        "Nickname must be between 3 and 20 characters",
+      );
       expect(error.response.data.errors).toContain("Invalid avatar ID");
     }
   });
@@ -109,7 +111,7 @@ describe("User Route Tests", () => {
       await userApi.get("/user/profiles", {
         params: { ids: "invalid_id1,invalid_id2" },
       });
-    } catch (error :any) {
+    } catch (error: any) {
       expect(error.response.status).toBe(400);
       expect(error.response.data.success).toBe(false);
       expect(error.response.data.message).toBe("Invalid user IDs provided");

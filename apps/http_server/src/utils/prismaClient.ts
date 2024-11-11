@@ -1,5 +1,5 @@
-import { PrismaClient } from "@repo/db";
+import { PrismaClient } from "@repo/db/src";
 
- const  prisma = new PrismaClient();
+const prisma = new PrismaClient();
 
- export default prisma;
+export default prisma;

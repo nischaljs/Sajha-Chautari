@@ -1,10 +1,13 @@
 {
   "name": "@repo/db",
   "version": "1.0.0",
-  "main":"index.ts",
+  "main": "src/index.ts",
   "scripts": {
     "db:generate": "prisma generate",
     "db:push": "prisma db push --skip-generate"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
   },
   "keywords": [],
   "author": "",
@@ -13,10 +16,10 @@
     "prisma": "5.22.0"
   },
   "dependencies": {
-    "@prisma/client": "5.22.0"
+    "@prisma/client": "5.22.0",
+    "package.json": "^2.0.1"
   },
   "exports": {
-
-    ".": "./index.ts"
-  } 
+    "./src": "./src/index.ts"
+  }
 }
