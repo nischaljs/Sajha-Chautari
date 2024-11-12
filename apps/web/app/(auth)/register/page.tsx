@@ -20,7 +20,6 @@ export default function RegisterPage() {
     const password = formData.get("password");
 
     try {
-      console.log(process.env.NEXT_PUBLIC_HTTP_URL, "hello whats up");
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_HTTP_URL}/auth/register`,
         {
@@ -34,8 +33,6 @@ export default function RegisterPage() {
         throw new Error(data.message || "Registration failed");
       }
       localStorage.setItem("token", response?.data?.data?.token);
-      console.log("token set");
-
       router.push("/spaces");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

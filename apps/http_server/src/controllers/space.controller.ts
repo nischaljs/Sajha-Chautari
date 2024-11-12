@@ -126,6 +126,7 @@ export const joinSpaceController = async (
     const spaceId = req.body.spaceId;
     const userId = req.userId;
 
+
     const userresponse = await prisma.user.findUnique({
       where: {
         id: userId,
@@ -143,6 +144,9 @@ export const joinSpaceController = async (
       where: {
         id: spaceId,
       },
+      include:{
+        map:true
+      }
     });
 
     if (!spaceResponse) {
@@ -158,11 +162,18 @@ export const joinSpaceController = async (
           connect: { id: spaceId },
         },
       },
+      select:{
+        id:true,
+        email:true,
+        password:true,
+        nickname:true,
+        avatar:true
+      }
     });
 
     res
       .status(HttpStatusCode.Ok)
-      .json(new SuccessResponse("user entered the space", user));
+      .json(new SuccessResponse("user entered the space", {user, spaceResponse}));
   } catch (error) {
     next(error);
   }

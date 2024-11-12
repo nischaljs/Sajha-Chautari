@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   images:{
    domains:[
-    'png.pngtree.com'
+    'png.pngtree.com',
+    'img.lovepik.com'
    ]
   }
 };

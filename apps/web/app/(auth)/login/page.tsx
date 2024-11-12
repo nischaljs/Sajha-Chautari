@@ -33,7 +33,6 @@ export default function LoginPage() {
         throw new Error(data.message || "Registration failed");
       }
       localStorage.setItem("token", response?.data?.data?.token);
-      console.log("token set");
 
       router.push("/spaces");
     } catch (err) {
@@ -94,13 +93,13 @@ export default function LoginPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Registering..." : "Register"}
+              {loading ? "logging in..." : "login"}
             </button>
           </div>
           <p>
             Don't have an account?, then lets{" "}
             <Link href={"/login"} className="text-blue-600 underline">
-              Register
+              login
             </Link>
           </p>
         </form>

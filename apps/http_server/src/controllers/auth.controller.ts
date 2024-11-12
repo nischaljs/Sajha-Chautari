@@ -12,7 +12,6 @@ function generateJWTToken(data: {}) {
   return jwt.sign(data, JWT_SECRET);
 }
 
-console.log(process.env.JWT_SECRET)
 function hashPassword(password: string) {
   return hash(password, 10);
 }

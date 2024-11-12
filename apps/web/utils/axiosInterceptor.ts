@@ -4,7 +4,6 @@ const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_HTTP_URL,
 });
 
-console.log(process.env.NEXT_PUBLIC_HTTP_URL);
 
 api.interceptors.request.use(
   function (config) {

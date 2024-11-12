@@ -13,9 +13,6 @@ const adminRouter = express.Router();
 
 adminRouter.use(authmiddleware());
 adminRouter.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(req.userRole);
-  console.log(role.Admin);
-  console.log(typeof(req.userRole), typeof(role[role.Admin]));
   if (!req.userRole || String(req.userRole) !== role[role.Admin]) {
     throw new AppError(
       HttpStatusCode.Unauthorized,

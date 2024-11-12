@@ -14,6 +14,10 @@ export async function onUserConnected(socket: Socket, io: Server) {
   try {
     const spaceId = socket.data.spaceId;
     const userId = socket.data.userId;
+    const mapData = socket.data.mapData
+
+
+  
 
     socket.join(spaceId);
 
@@ -38,8 +42,8 @@ export async function onUserConnected(socket: Socket, io: Server) {
     const users = Array.from(userStates[spaceId].values());
     socket.emit("initialize_space", { success: true, users });
 
-    // Notify everyone in the room about the ne// Clear userStates when the room is emptyw user
-    io.to(spaceId).emit("join_space", {
+    // Notify everyone in the room about the new
+    socket.to(spaceId).emit("join_space", {
       success: true,
       id: socket.id,
       users: {

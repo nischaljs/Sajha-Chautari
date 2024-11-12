@@ -108,3 +108,23 @@ export const getUserProfile = async (
     next(error);
   }
 };
+
+
+export const  getLoggedUser = async (req:Request, res:Response, next:NextFunction) =>{
+try {
+  const userId = req.userId;
+  const user = await prisma.user.findUnique({
+    where:{
+      id:userId
+    },
+    select:{
+      nickname:true,
+      email:true,
+      id:true,
+    }
+  })
+  res.status(HttpStatusCode.Ok).json(new SuccessResponse("User retrieved succesfully",user));
+} catch (error) {
+  next(error);
+}
+}

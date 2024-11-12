@@ -12,6 +12,7 @@ const arenaRouter = express.Router();
 arenaRouter.use(authmiddleware());
 
 arenaRouter.get("/elements", GetAvailableElementsController);
+arenaRouter.get("/check-position", checkPositionController);
 
 arenaRouter.get("/:spaceId", getArenaDetailsController);
 
@@ -19,6 +20,5 @@ arenaRouter.post("/:spaceId/elements", addElementsToArenaController);
 
 arenaRouter.delete("/:spaceId/elements/:elementId");
 
-arenaRouter.get("/check-position", checkPositionController);
 
 export default arenaRouter;

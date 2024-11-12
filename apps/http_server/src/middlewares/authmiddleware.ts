@@ -25,10 +25,8 @@ function authmiddleware() {
         userId: string;
         role: role;
       };
-      console.log("decoded string", decoded)
       req.userId = decoded.userId;
       req.userRole = decoded.role;
-      console.log("the user is a ", req.userRole)
       next();
     } catch (error) {
       next(error);

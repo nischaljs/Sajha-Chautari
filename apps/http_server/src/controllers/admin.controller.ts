@@ -97,7 +97,6 @@ export const createMapController = async (
   next: NextFunction,
 ) => {
   try {
-    console.log(req.body)
     const parsedData = createMapSchema.safeParse(req.body);
 
     if (!parsedData.success) {

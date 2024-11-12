@@ -66,3 +66,11 @@ export const addMapElementSchema = z.object({
   mapId: z.string(),
   defaultElements: z.array(elementSchema),
 });
+
+
+export interface UserInfo{
+  id:string,
+  email:string,
+  nickname:string | null,
+  avatarId:string|null,
+}

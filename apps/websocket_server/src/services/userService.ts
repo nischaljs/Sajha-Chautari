@@ -12,6 +12,5 @@ export const userService = {
   },
 
   updateUserPosition(userId: string, newPosition: { x: number; y: number }) {
-    console.log(`Updated position for user ${userId}:`, newPosition);
   },
 };
