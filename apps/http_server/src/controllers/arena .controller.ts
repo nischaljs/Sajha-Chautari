@@ -17,8 +17,59 @@ export const getArenaDetailsController = async (
         id: spaceId,
       },
       include: {
-        elements: true,
-      },
+        // Include space elements with their full element details
+        elements: {
+          include: {
+            element: {
+              select: {
+                id: true,
+                name: true,
+                width: true,
+                height: true,
+                imageUrl: true,
+                static: true,
+              }
+            }
+          }
+        },
+        // Include map with its elements
+        map: {
+          include: {
+            mapElements: {
+              include: {
+                element: {
+                  select: {
+                    id: true,
+                    name: true,
+                    width: true,
+                    height: true,
+                    imageUrl: true,
+                    static: true,
+                  }
+                }
+              }
+            }
+          }
+        },
+        // Include creator details
+        creator: {
+          select: {
+            id: true,
+            nickname: true,
+            avatarId: true,
+            role: true,
+          }
+        },
+        // Include connected users
+        users: {
+          select: {
+            id: true,
+            nickname: true,
+            avatarId: true,
+            role: true,
+          }
+        }
+      }
     });
     res
       .status(HttpStatusCode.Ok)

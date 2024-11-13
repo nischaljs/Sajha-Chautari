@@ -1,9 +1,15 @@
 export interface User {
-    id: string
-    nickname: string
-    email: string
-    position?:{
-        x:number,
-        y:number
-    }
-}
+    id: string;
+    email: string;
+    nickname: string;
+    avatarId?: string;
+    position?: {
+      x: number;
+      y: number;
+    };
+    avatar?: {
+      id: string;
+      imageUrl?: string;
+      name?: string;
+    };
+  }

@@ -6,7 +6,7 @@ export const userStates: Record<
   string,
   Map<
     string,
-    { avatar: string; nickname: string; position: { x: number; y: number } }
+    { id:string,avatar: string; nickname: string; position: { x: number; y: number } }
   >
 > = {};
 
@@ -33,6 +33,7 @@ export async function onUserConnected(socket: Socket, io: Server) {
       (await userService.getUserDetails(userId));
 
     userStates[spaceId].set(userId, {
+      id:userId,
       avatar: user?.avatar || "",
       nickname: user?.nickname || "Guest",
       position: { x: user?.positionX || 0, y: user?.positionY || 0 },

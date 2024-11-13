@@ -74,3 +74,5 @@ export interface UserInfo{
   nickname:string | null,
   avatarId:string|null,
 }
+
+

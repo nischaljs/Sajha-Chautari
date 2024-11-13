@@ -17,22 +17,27 @@ export function handleMovement(socket: Socket, io: Server) {
           message: "Position is occupied. Cannot move here.",
         });
       } else {
-        // userService.updateUserPosition(socket.id, newPosition);
-        io.to(socket.data.spaceId).emit("movementResult", {
-          success: true,
-          newCoordinates: newPosition,
-        });
-
-  
         const previousData = userStates[spaceId].get(userId) || {
+          id:userId,
           avatar: "",
           nickname: "",
         };
 
         userStates[spaceId].set(userId, {
+
           ...previousData,
           position: { x: newPosition.x, y: newPosition.y },
         });
+
+        io.to(socket.data.spaceId).emit("movementResult", {
+          success: true,
+          userId:userId,
+          newCoordinates: newPosition,
+          users:userStates[spaceId]
+        });
+
+  
+
       }
     } catch (error) {
       console.error("Error handling movement:", error);
