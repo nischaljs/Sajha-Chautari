@@ -1,13 +1,17 @@
-'use client'
-
-
+"use client";
+import React, { useEffect, useRef, useState } from "react";
 import Canvas from "@/components/Canvas";
 import { Card } from "@/components/ui/card";
 import UserList from "@/components/UserList";
-import { Map, Position, SpaceDetailsResponse, SpaceElement, User } from "@/types/Space";
+import {
+  Map,
+  Position,
+  SpaceDetailsResponse,
+  SpaceElement,
+  User,
+} from "@/types/Space";
 import api from "@/utils/axiosInterceptor";
 import { useParams } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 const VirtualSpace: React.FC = () => {
@@ -34,18 +38,23 @@ const VirtualSpace: React.FC = () => {
   });
   const [socket, setSocket] = useState<Socket | null>(null);
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
-  const elementImagesRef = useRef<globalThis.Map<string, HTMLImageElement>>(new globalThis.Map());
-  const avatarImagesRef = useRef<globalThis.Map<string, HTMLImageElement>>(new globalThis.Map());
-  const DEFAULT_AVATAR_URL = '/api/placeholder/32/32'
+  const elementImagesRef = useRef<globalThis.Map<string, HTMLImageElement>>(
+    new globalThis.Map()
+  );
+  const avatarImagesRef = useRef<globalThis.Map<string, HTMLImageElement>>(
+    new globalThis.Map()
+  );
+  const DEFAULT_AVATAR_URL =
+    "https://cdn.pixabay.com/photo/2024/02/15/14/57/animal-8575560_640.jpg";
 
   useEffect(() => {
     if (spaceId) {
       const fetchSpace = async () => {
         try {
-          console.log("Fetching space data...");
-          const response = await api.get<{ data: SpaceDetailsResponse }>(`/arenas/${spaceId}`);
+          const response = await api.get<{ data: SpaceDetailsResponse }>(
+            `/arenas/${spaceId}`
+          );
           const spaceData = response.data.data;
-          console.log("Space data fetched:", spaceData);
           setGameState((prev) => ({
             ...prev,
             spaceDetails: spaceData,
@@ -54,21 +63,19 @@ const VirtualSpace: React.FC = () => {
             position: { x: spaceData.map.dropX, y: spaceData.map.dropY },
           }));
         } catch (error) {
-          console.error("Failed to load space data:", error);
+          console.error("Error fetching space data:", error);
           setGameState((prev) => ({
             ...prev,
             error: "Failed to load space data",
           }));
         }
       };
-
       fetchSpace();
     }
   }, [spaceId]);
 
   useEffect(() => {
     if (gameState.map) {
-      console.log("Loading images...");
       loadImages();
     }
   }, [gameState.map, gameState.elements]);
@@ -76,13 +83,11 @@ const VirtualSpace: React.FC = () => {
   const loadImages = async () => {
     if (!gameState.map?.thumbnail) return;
 
-    console.log("Loading background image...");
     const bgImage = new Image();
     bgImage.src = gameState.map.thumbnail;
     await new Promise((resolve) => (bgImage.onload = resolve));
     backgroundImageRef.current = bgImage;
 
-    console.log("Loading element images...");
     const loadImage = async (element: SpaceElement) => {
       if (!elementImagesRef.current.has(element.id)) {
         const img = new Image();
@@ -96,7 +101,6 @@ const VirtualSpace: React.FC = () => {
       ...gameState.map.mapElements.map(loadImage),
     ]);
 
-    console.log("Loading user avatar images...");
     const loadUserAvatar = async (user: User) => {
       if (!avatarImagesRef.current.has(user.id) && user.avatar?.imageUrl) {
         const img = new Image();
@@ -106,8 +110,6 @@ const VirtualSpace: React.FC = () => {
       }
     };
     await Promise.all(gameState.users.map(loadUserAvatar));
-
-    console.log("All images loaded, drawing scene...");
   };
 
   useEffect(() => {
@@ -123,125 +125,86 @@ const VirtualSpace: React.FC = () => {
         return;
       }
 
-      console.log("Connecting to socket...");
-      const ws = io(socketUrl, {
-        auth: {
-          token: token,
-          spaceId: spaceId,
-        },
+      const newSocket = io(socketUrl, {
+        auth: { spaceId, token },
+      });
+      setSocket(newSocket);
+
+      newSocket.on("connect", () => {
+        console.log("Socket connected");
+        setGameState((prev) => ({ ...prev, connected: true }));
       });
 
-      ws.on("connect", () => {
-        console.log("Connected to socket");
-        setGameState((prev) => ({
-          ...prev,
-          connected: true,
-        }));
-      });
-
-      ws.on("initialize_space", (data: { success: boolean; users: User[]; currentUserId: string }) => {
+      newSocket.on("initialize_space", (data) => {
         if (data.success) {
-          console.log("Space initialized:", data);
+          console.log("Initialized space with users:", data.users);
           setGameState((prev) => ({
             ...prev,
             users: data.users,
-            connected: true,
             currentUserId: data.currentUserId,
           }));
         } else {
-          console.error("Failed to initialize space:", data);
+          console.error("Failed to initialize space:", data.error);
         }
       });
 
-      ws.on("join_space", (data: { success: boolean; users: User }) => {
+      newSocket.on("movementResult", (data) => {
+        console.log("Movement result:", data);
         if (data.success) {
-          console.log("User joined the space:", data);
-          setGameState((prev) => ({
-            ...prev,
-            users: [...prev.users, data.users],
-          }));
-        } else {
-          console.error("Failed to join space:", data);
-        }
-      });
-
-      ws.on("leave_space", (data: { success: boolean; id: string }) => {
-        if (data.success) {
-          console.log("User left the space:", data);
-          setGameState((prev) => ({
-            ...prev,
-            users: prev.users.filter((user) => user.id !== data.id),
-          }));
-        } else {
-          console.error("Failed to leave space:", data);
-        }
-      });
-
-      ws.on("movementResult", (data: { success: boolean; newCoordinates: Position; message?: string }) => {
-        if (data.success) {
-          console.log("Movement successful:", data);
           setGameState((prev) => ({
             ...prev,
             position: data.newCoordinates,
+            users: Array.from(data.users.values()),
           }));
         } else {
-          console.error("Movement failed:", data);
-          setGameState((prev) => ({
-            ...prev,
-            error: data.message || "Movement failed",
-          }));
+          console.error("Movement failed:", data.message);
         }
       });
 
-      ws.on("disconnect", () => {
-        console.log("Disconnected from socket");
-        setGameState((prev) => ({
-          ...prev,
-          connected: false,
-        }));
+      newSocket.on("others_move", (data) => {
+        if (data.success) {
+          console.log("Others moved:", data.users);
+          setGameState((prev) => ({
+            ...prev,
+            users: Array.from(data.users.values()),
+          }));
+        } else {
+          console.error("Error in others_move event:", data.error);
+        }
       });
 
-      setSocket(ws);
+      newSocket.on("disconnect", () => {
+        console.log("Socket disconnected");
+        setGameState((prev) => ({ ...prev, connected: false }));
+      });
 
       return () => {
-        console.log("Disconnecting from socket...");
-        ws.disconnect();
+        console.log("Disconnecting socket");
+        newSocket.disconnect();
       };
     }
   }, [spaceId]);
 
+  const handleMovement = (newPosition: Position) => {
+    if (socket) {
+      socket.emit("movement", newPosition);
+    }
+  };
 
-
-  
   return (
-    <Card className="p-6 mx-auto relative">
-      <div className="space-y-4">
-        {gameState.connected ? (
-          <>
-            <div className="text-lg font-bold mb-4">
-              Space: {gameState.spaceDetails?.name || spaceId}
-            </div>
-            <Canvas
-              map={gameState.map}
-              elements={gameState.elements}
-              users={gameState.users}
-              position={gameState.position}
-              backgroundImageRef={backgroundImageRef}
-              elementImagesRef={elementImagesRef}
-              avatarImagesRef={avatarImagesRef}
-              socket={socket}
-            />
-            {gameState.error && (
-              <div className="text-red-500 text-center p-2 bg-red-50 rounded">
-                {gameState.error}
-              </div>
-            )}
-            <UserList users={gameState.users} currentUserId={gameState.currentUserId} />
-          </>
-        ) : (
-          <div className="text-center py-4">Connecting...</div>
-        )}
-      </div>
+    <Card className="virtual-space">
+      <Canvas
+        users={gameState.users}
+        position={gameState.position}
+        elements={gameState.elements}
+        map={gameState.map}
+        backgroundImageRef={backgroundImageRef}
+        elementImagesRef={elementImagesRef}
+        avatarImagesRef={avatarImagesRef}
+        currentUserId={gameState.currentUserId}
+        onMove={handleMovement}
+      />
+      <UserList users={gameState.users} />
     </Card>
   );
 };

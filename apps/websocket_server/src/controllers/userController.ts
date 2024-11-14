@@ -1,90 +1,146 @@
 import { Server, Socket } from "socket.io";
 import { userService } from "../services/userService";
 
+// Types
+interface Position {
+  x: number;
+  y: number;
+}
+
+interface UserState {
+  id: string;
+  avatar: string;
+  nickname: string;
+  position: Position;
+}
+
+interface MapData {
+  width: number;
+  height: number;
+}
+
+interface SocketData {
+  spaceId: string;
+  userId: string;
+  mapData: MapData;
+}
+
+interface JoinSpaceResponse {
+  success: boolean;
+  id: string;
+  users?: UserState | UserState[];
+}
+
+// State management
 export const roomUsers: Record<string, Set<string>> = {};
-export const userStates: Record<
-  string,
-  Map<
-    string,
-    { id:string,avatar: string; nickname: string; position: { x: number; y: number } }
-  >
-> = {};
+export const userStates: Record<string, Map<string, UserState>> = {};
 
-export async function onUserConnected(socket: Socket, io: Server) {
-  try {
-    const spaceId = socket.data.spaceId;
-    const userId = socket.data.userId;
-    const mapData = socket.data.mapData
+// Helper functions
+function initializeRoom(spaceId: string): void {
+  if (!roomUsers[spaceId]) {
+    roomUsers[spaceId] = new Set();
+    userStates[spaceId] = new Map();
+  }
+}
 
+function cleanupRoom(spaceId: string): void {
+  if (roomUsers[spaceId]?.size === 0) {
+    delete roomUsers[spaceId];
+    delete userStates[spaceId];
+  }
+}
 
+async function createUserState(userId: string, userData?: Partial<UserState>): Promise<UserState> {
+  const user = userData || await userService.getUserDetails(userId);
   
-
-    socket.join(spaceId);
-
-    if (!roomUsers[spaceId]) {
-      roomUsers[spaceId] = new Set();
-      userStates[spaceId] = new Map();
+  return {
+    id: userId,
+    avatar: user?.avatar || "",
+    nickname: user?.nickname || "Guest",
+    position: { 
+      x: user?.positionX || 0, 
+      y: user?.positionY || 0 
     }
+  };
+}
 
+// Main functions
+export async function onUserConnected(socket: Socket<any, any, any, SocketData>, io: Server) {
+  const { spaceId, userId } = socket.data;
+
+  try {
+    // Join the room
+    await socket.join(spaceId);
+    
+    // Initialize room if needed
+    initializeRoom(spaceId);
+    
+    // Add user to room
     roomUsers[spaceId].add(userId);
 
-    const user =
-      userStates[spaceId].get(userId) ||
-      (await userService.getUserDetails(userId));
+    // Create or get user state
+    const userState = await createUserState(
+      userId,
+      userStates[spaceId].get(userId)
+    );
+    
+    // Store user state
+    userStates[spaceId].set(userId, userState);
 
-    userStates[spaceId].set(userId, {
-      id:userId,
-      avatar: user?.avatar || "",
-      nickname: user?.nickname || "Guest",
-      position: { x: user?.positionX || 0, y: user?.positionY || 0 },
+    // Send existing users to new user
+    const existingUsers = Array.from(userStates[spaceId].values());
+    socket.emit("initialize_space", { 
+      success: true, 
+      users: existingUsers 
     });
 
-    // Send existing users to the new user
-    const users = Array.from(userStates[spaceId].values());
-    socket.emit("initialize_space", { success: true, users });
-
-    // Notify everyone in the room about the new
-    socket.to(spaceId).emit("join_space", {
+    // Notify others about new user
+    socket.broadcast.to(spaceId).emit("join_space", {
       success: true,
-      id: socket.id,
-      users: {
-        userId,
-        avatar: user?.avatar || "",
-        position: { x: user?.positionX || 0, y: user?.positionY || 0 },
-      },
+      id: userId,
+      users: userState
     });
+
   } catch (error) {
+    console.error("Error in onUserConnected:", error);
     socket.emit("join_space", {
       success: false,
-      id: socket.id,
+      id: userId,
+      error: "Failed to join space"
     });
   }
 }
 
-export function onUserDisconnected(socket: Socket, io: Server) {
+export async function onUserDisconnected(socket: Socket<any, any, any, SocketData>, io: Server) {
+  const { spaceId, userId } = socket.data;
+
   try {
-    const spaceId = socket.data.spaceId;
-    const userId = socket.data.userId;
-
-    if (roomUsers[spaceId]) {
-      roomUsers[spaceId].delete(userId);
-
-      // If the room is empty, remove it from the map
-      if (roomUsers[spaceId].size === 0) {
-        delete roomUsers[spaceId];
-        delete userStates[spaceId];
-      }
+    if (!roomUsers[spaceId]) {
+      throw new Error(`Room ${spaceId} not found`);
     }
 
-    io.to(spaceId).emit("leave_space", {
+    // Remove user from room
+    roomUsers[spaceId].delete(userId);
+    userStates[spaceId]?.delete(userId);
+
+    // Clean up empty room
+    cleanupRoom(spaceId);
+
+    // Notify others
+    socket.broadcast.to(spaceId).emit("leave_space", {
       success: true,
-      id: userId,
+      id: userId
     });
-    socket.leave(spaceId);
+
+    // Leave the room
+    await socket.leave(spaceId);
+
   } catch (error) {
+    console.error("Error in onUserDisconnected:", error);
     socket.emit("leave_space", {
       success: false,
-      id: socket.id,
+      id: userId,
+      error: "Failed to leave space"
     });
   }
 }

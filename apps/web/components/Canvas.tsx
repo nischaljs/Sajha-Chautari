@@ -1,168 +1,196 @@
-
-import React, { useRef, useEffect } from "react";
-import { Map, SpaceElement, User, Position } from "@/types/Space";
-import { Socket } from "socket.io-client";
-
-const TILE_SIZE = 32;
-const MOVE_STEP = 32;
+// Canvas component
+import React, { useEffect, useRef, useState } from "react";
+import { Position, SpaceElement, User, Map } from "@/types/Space";
 
 interface CanvasProps {
-  map: Map | null;
-  elements: SpaceElement[];
   users: User[];
   position: Position;
-  backgroundImageRef: React.RefObject<HTMLImageElement>;
-  elementImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>> | null;
-  avatarImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>> | null;
-  socket:Socket | null
+  elements: SpaceElement[];
+  map: Map | null;
+  backgroundImageRef: React.RefObject<HTMLImageElement | null>;
+  elementImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>>;
+  avatarImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>>;
+  currentUserId: string;
+  onMove: (newPosition: Position) => void;
 }
 
 const Canvas: React.FC<CanvasProps> = ({
-  map,
-  elements,
   users,
   position,
+  elements,
+  map,
   backgroundImageRef,
   elementImagesRef,
   avatarImagesRef,
-  socket
+  currentUserId,
+  onMove,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const contextRef = useRef<CanvasRenderingContext2D | null>(null);
-  const DEFAULT_AVATAR_URL: CanvasImageSource = new Image();
-  DEFAULT_AVATAR_URL.src = "https://mdn.github.io/shared-assets/images/examples/rhino.jpg";
-  
-
+  const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+  const [animationFrameId, setAnimationFrameId] = useState<number | null>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (ctx) contextRef.current = ctx;
+    if (canvasRef.current) {
+      setContext(canvasRef.current.getContext("2d"));
     }
   }, []);
 
   useEffect(() => {
-    if (contextRef.current && map && backgroundImageRef.current) {
-      console.log("Drawing scene...");
-      drawScene();
-    }
-  }, [map, elements, users, position, backgroundImageRef, elementImagesRef, avatarImagesRef]);
-
-
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowUp': case 'w': handleMovement('up'); break;
-        case 'ArrowDown': case 's': handleMovement('down'); break;
-        case 'ArrowLeft': case 'a': handleMovement('left'); break;
-        case 'ArrowRight': case 'd': handleMovement('right'); break;
-      }
+    const animateCanvas = () => {
+      if (!context || !map) return;
+      drawBackground();
+      drawElements();
+      drawAvatars();
+      const id = requestAnimationFrame(animateCanvas);
+      setAnimationFrameId(id);
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
-
-
-  const handleMovement = (direction: 'up' | 'down' | 'left' | 'right') => {
-    console.log("You moved in direction :",direction);
-    const newPosition = { ...position };
-    switch (direction) {
-      case 'up': newPosition.y = Math.max(0, newPosition.y - MOVE_STEP); break;
-      case 'down': newPosition.y = Math.min((map?.height || 0) - TILE_SIZE, newPosition.y + MOVE_STEP); break;
-      case 'left': newPosition.x = Math.max(0, newPosition.x - MOVE_STEP); break;
-      case 'right': newPosition.x = Math.min((map?.width || 0) - TILE_SIZE, newPosition.x + MOVE_STEP); break;
+    if (context) {
+      const id = requestAnimationFrame(animateCanvas);
+      setAnimationFrameId(id);
     }
-    console.log("new position now ", newPosition);
 
-    if (isValidPosition(newPosition)) {
-        socket?.emit('movement', newPosition);
-        console.log("You emitted the movement event")
+    return () => {
+      // Cancel the animation loop when the component unmounts
+      // or the context changes
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [context, map, shouldRender]);
+
+ 
+
+  // const animateCanvas = () => {
+  //   if (!context || !map) return;
+  //   drawBackground();
+  //   drawElements();
+  //   drawAvatars();
+  //   console.log("just animated the canvas");
+  // };
+
+  // useEffect(() => {
+  //   const intervalId = setInterval(animateCanvas, 50); // Redraw the canvas every 50ms (20 FPS)
+  //   return () => clearInterval(intervalId); // Cleanup interval
+  // }, [users, position, elements, map]);
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const { keyCode } = event;
+    const speed = 1; // Adjust the movement speed as needed
+    let newPosition: Position = { ...position };
+
+    switch (keyCode) {
+      case 37: // Left arrow
+        newPosition.x -= speed;
+        break;
+      case 38: // Up arrow
+        newPosition.y -= speed;
+        break;
+      case 39: // Right arrow
+        newPosition.x += speed;
+        break;
+      case 40: // Down arrow
+        newPosition.y += speed;
+        break;
+      default:
+        return;
+    }
+
+    onMove(newPosition);
+    setShouldRender(true);
+  };
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
+  const drawBackground = () => {
+    if (!canvasRef.current || !context) {
+      console.log("Canvas or context is null");
+      return;
+    }
+    if (backgroundImageRef.current) {
+      context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      context.drawImage(backgroundImageRef.current, 0, 0);
     }
   };
 
-  const isValidPosition = (position: Position): boolean => {
-    if (!map) return false;
+  const drawElements = () => {
+    if (!elementImagesRef.current || !context) return;
 
-    if (
-      position.x < 0 ||
-      position.x > map.width - TILE_SIZE ||
-      position.y < 0 ||
-      position.y > map.height - TILE_SIZE
-    ) {
-      return false;
-    }
+    elements.forEach((element) => {
+      console.log("drawing elements");
+      const img = elementImagesRef.current?.get(element.id) || new Image();
 
-    const collision = [...map.mapElements, ...elements].some(element => {
-      if (!element.element.static) return false;
-      return (
-        position.x < element.x + element.element.width &&
-        position.x + TILE_SIZE > element.x &&
-        position.y < element.y + element.element.height &&
-        position.y + TILE_SIZE > element.y
-      );
-    });
-
-    console.log("did you collides", collision);
-    return !collision;
-  };
-
-
-
-  const drawScene = () => {
-    const context = contextRef.current;
-    const canvas = canvasRef.current;
-    if (!context || !canvas || !map) return;
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(backgroundImageRef.current!, 0, 0, canvas.width, canvas.height);
-
-    [...map.mapElements, ...elements].forEach((element) => {
-      const elementImage = elementImagesRef?.current?.get(element.id);
-      if (elementImage) {
+      if (img.src && img.complete) {
         context.drawImage(
-          elementImage,
-          element.x,
-          element.y,
-          element.element.width,
-          element.element.height
+          img,
+          element.x - position.x,
+          element.y - position.y
         );
+      } else {
+        context.beginPath();
+        context.arc(
+          element.x - position.x,
+          element.y - position.y,
+          15,
+          0,
+          2 * Math.PI
+        );
+        context.fillStyle = "#00FF00";
+        context.fill();
       }
     });
+  };
+
+  const drawAvatars = () => {
+    if (!avatarImagesRef.current || !context) return;
 
     users.forEach((user) => {
-      const userAvatar = avatarImagesRef?.current?.get(user.id);
-      const position = user.position || {
-        x: map?.dropX || 0,
-        y: map?.dropY || 0,
-      };
+      const img = avatarImagesRef.current?.get(user.id);
 
-      if (userAvatar) {
-        context.drawImage(userAvatar, position.x, position.y, TILE_SIZE, TILE_SIZE);
+      const avatarPosition: Position = user.id === currentUserId
+        ? position
+        : user.position || { x: 0, y: 0 };
+
+      console.log("avatar position", avatarPosition);
+
+      if (img) {
+        context.drawImage(
+          img,
+          avatarPosition.x - position.x,
+          avatarPosition.y - position.y
+        );
       } else {
-        context.drawImage(DEFAULT_AVATAR_URL, position.x, position.y, TILE_SIZE, TILE_SIZE)
-      }
+        const radius = 16;
+        context.beginPath();
+        context.arc(
+          avatarPosition.x - position.x + radius,
+          avatarPosition.y - position.y + radius,
+          radius,
+          0,
+          2 * Math.PI
+        );
 
-      context.fillStyle = "white";
-      context.strokeStyle = "black";
-      context.lineWidth = 2;
-      context.font = "14px Arial";
-      context.textAlign = "center";
-      const textX = position.x + TILE_SIZE / 2;
-      const textY = position.y - 5;
-      context.strokeText(user.nickname, textX, textY);
-      context.fillText(user.nickname, textX, textY);
+        const randomColor = "#" + Math.floor(Math.random() * 16777215).toString(16);
+        console.log("random color", randomColor);
+        context.fillStyle = randomColor;
+        context.fill();
+      }
     });
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={map?.width || 800}
-      height={map?.height || 600}
-      className="border border-gray-200 rounded-lg bg-blue-400"
-    />
+    <div style={{ position: "relative" }}>
+      <canvas
+        ref={canvasRef}
+        width={map?.width || 800}
+        height={map?.height || 600}
+        style={{ border: "1px solid black" }}
+      />
+    </div>
   );
 };
 
