@@ -13,10 +13,13 @@ import {
 import api from "@/utils/axiosInterceptor";
 import { useParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
+import { useUserContext } from "@/context/UserContext";
 
 const VirtualSpace: React.FC = () => {
   const params = useParams();
   const spaceId = params.spaceId ? String(params.spaceId) : null;
+  const user = useUserContext();
+
   const [gameState, setGameState] = useState<{
     users: User[];
     position: Position;
@@ -36,7 +39,9 @@ const VirtualSpace: React.FC = () => {
     spaceDetails: null,
     currentUserId: "",
   });
+
   const [socket, setSocket] = useState<Socket | null>(null);
+
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const elementImagesRef = useRef<globalThis.Map<string, HTMLImageElement>>(
     new globalThis.Map()
@@ -44,9 +49,8 @@ const VirtualSpace: React.FC = () => {
   const avatarImagesRef = useRef<globalThis.Map<string, HTMLImageElement>>(
     new globalThis.Map()
   );
-  const DEFAULT_AVATAR_URL =
-    "https://cdn.pixabay.com/photo/2024/02/15/14/57/animal-8575560_640.jpg";
 
+  // Fetch initial space data
   useEffect(() => {
     if (spaceId) {
       const fetchSpace = async () => {
@@ -74,44 +78,7 @@ const VirtualSpace: React.FC = () => {
     }
   }, [spaceId]);
 
-  useEffect(() => {
-    if (gameState.map) {
-      loadImages();
-    }
-  }, [gameState.map, gameState.elements]);
-
-  const loadImages = async () => {
-    if (!gameState.map?.thumbnail) return;
-
-    const bgImage = new Image();
-    bgImage.src = gameState.map.thumbnail;
-    await new Promise((resolve) => (bgImage.onload = resolve));
-    backgroundImageRef.current = bgImage;
-
-    const loadImage = async (element: SpaceElement) => {
-      if (!elementImagesRef.current.has(element.id)) {
-        const img = new Image();
-        img.src = element.element.imageUrl;
-        await new Promise((resolve) => (img.onload = resolve));
-        elementImagesRef.current.set(element.id, img);
-      }
-    };
-    await Promise.all([
-      ...gameState.elements.map(loadImage),
-      ...gameState.map.mapElements.map(loadImage),
-    ]);
-
-    const loadUserAvatar = async (user: User) => {
-      if (!avatarImagesRef.current.has(user.id) && user.avatar?.imageUrl) {
-        const img = new Image();
-        img.src = user.avatar.imageUrl || DEFAULT_AVATAR_URL;
-        await new Promise((resolve) => (img.onload = resolve));
-        avatarImagesRef.current.set(user.id, img);
-      }
-    };
-    await Promise.all(gameState.users.map(loadUserAvatar));
-  };
-
+  // Initialize WebSocket connection
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (spaceId && token) {
@@ -127,9 +94,13 @@ const VirtualSpace: React.FC = () => {
 
       const newSocket = io(socketUrl, {
         auth: { spaceId, token },
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
       });
       setSocket(newSocket);
 
+      // Handle WebSocket events
       newSocket.on("connect", () => {
         console.log("Socket connected");
         setGameState((prev) => ({ ...prev, connected: true }));
@@ -137,7 +108,6 @@ const VirtualSpace: React.FC = () => {
 
       newSocket.on("initialize_space", (data) => {
         if (data.success) {
-          console.log("Initialized space with users:", data.users);
           setGameState((prev) => ({
             ...prev,
             users: data.users,
@@ -148,25 +118,20 @@ const VirtualSpace: React.FC = () => {
         }
       });
 
-      newSocket.on("movementResult", (data) => {
-        console.log("Movement result:", data);
+      newSocket.on("join_space", (data) => {
         if (data.success) {
           setGameState((prev) => ({
             ...prev,
-            position: data.newCoordinates,
-            users: Array.from(data.users.values()),
+            users: data.users,
           }));
-        } else {
-          console.error("Movement failed:", data.message);
         }
       });
 
       newSocket.on("others_move", (data) => {
         if (data.success) {
-          console.log("Others moved:", data.users);
           setGameState((prev) => ({
             ...prev,
-            users: Array.from(data.users.values()),
+            users: data.users,
           }));
         } else {
           console.error("Error in others_move event:", data.error);
@@ -185,6 +150,7 @@ const VirtualSpace: React.FC = () => {
     }
   }, [spaceId]);
 
+  // Handle movement events from the Canvas component
   const handleMovement = (newPosition: Position) => {
     if (socket) {
       socket.emit("movement", newPosition);
@@ -204,7 +170,9 @@ const VirtualSpace: React.FC = () => {
         currentUserId={gameState.currentUserId}
         onMove={handleMovement}
       />
-      <UserList users={gameState.users} />
+      <div>
+        {user ? (<UserList users={gameState.users} currentUserId={user?.id} />) :null}
+      </div>
     </Card>
   );
 };
