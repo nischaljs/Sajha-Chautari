@@ -54,11 +54,12 @@ export function handleMovement(socket: Socket, io: Server) {
       });
 
       // Broadcast movement to other users in the same space
-      socket.broadcast.to(spaceId).emit("others_moved", {
+      socket.broadcast.to(spaceId).emit("others_move", {
         success: true,
         data: {
           userId,
           updatedUser: updatedState,
+          users:Array.from(userStates[spaceId].values()),
         }
       });
     } catch (error: any) {

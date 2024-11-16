@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Map, Position, SpaceElement, } from "@/types/Space";
-import{User} from "@/types/User"
+import { User } from "@/types/User"
 
 interface CanvasProps {
     users: User[];
@@ -14,8 +14,8 @@ interface CanvasProps {
     onMove: (newPosition: Position) => void;
 }
 
-const ELEMENT_SIZE = 20; // Element placeholder size
-const AVATAR_RADIUS = 10; // Placeholder avatar circle radius
+const ELEMENT_SIZE = 20;
+const AVATAR_RADIUS = 10;
 
 const Canvas: React.FC<CanvasProps> = ({
     users,
@@ -39,7 +39,6 @@ const Canvas: React.FC<CanvasProps> = ({
         }
     }, []);
 
-    // Utility to calculate relative positions for drawing
     const getRelativePosition = useCallback(
         (x: number, y: number) => ({
             x: x - position.x,
@@ -48,22 +47,25 @@ const Canvas: React.FC<CanvasProps> = ({
         [position]
     );
 
-    // Draw the background
+    // Modified drawBackground to always clear the canvas
     const drawBackground = useCallback(() => {
         const context = contextRef.current;
-        if (!canvasRef.current || !context || !backgroundImageRef.current) return;
+        const canvas = canvasRef.current;
+        if (!canvas || !context) return;
 
-        context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        // Always clear the entire canvas first
+        context.clearRect(0, 0, canvas.width, canvas.height);
 
-        const backgroundImg = backgroundImageRef.current;
-        if (backgroundImg.complete && backgroundImg.naturalWidth) {
-            context.drawImage(backgroundImg, 0, 0);
+        // Then draw the background if available
+        if (backgroundImageRef.current?.complete && backgroundImageRef.current?.naturalWidth) {
+            context.drawImage(backgroundImageRef.current, 0, 0);
         } else {
-            console.error("Background image is not ready.");
+            // Optional: Draw a fallback background color if no image is available
+            context.fillStyle = "#f0f0f0";
+            context.fillRect(0, 0, canvas.width, canvas.height);
         }
     }, [backgroundImageRef]);
 
-    // Draw map elements
     const drawElements = useCallback(() => {
         const context = contextRef.current;
         if (!context || !elementImagesRef.current) return;
@@ -76,13 +78,12 @@ const Canvas: React.FC<CanvasProps> = ({
             if (img) {
                 context.drawImage(img, x, y);
             } else {
-                context.fillStyle = "#00FF00"; // Placeholder color
+                context.fillStyle = "#00FF00";
                 context.fillRect(x, y, ELEMENT_SIZE, ELEMENT_SIZE);
             }
         });
     }, [elements, elementImagesRef, getRelativePosition]);
 
-    // Draw avatars
     const drawAvatars = useCallback(() => {
         const context = contextRef.current;
         if (!context || !avatarImagesRef.current) return;
@@ -95,14 +96,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
             let img = avatarImagesRef.current.get(user.id);
 
-            if (!img) {
-                // Placeholder avatar image
-                img = new Image();
-                img.src = "https://via.placeholder.com/50";
-                avatarImagesRef.current.set(user.id, img);
-            }
-
-            if (img.complete && img.naturalWidth) {
+            if (img?.complete && img?.naturalWidth) {
                 context.drawImage(img, x, y);
             } else {
                 // Draw placeholder circle
@@ -114,7 +108,6 @@ const Canvas: React.FC<CanvasProps> = ({
         });
     }, [users, avatarImagesRef, currentUserId, position, getRelativePosition]);
 
-    // Animation loop
     useEffect(() => {
         const animateCanvas = () => {
             if (!contextRef.current || !map) return;
@@ -135,13 +128,12 @@ const Canvas: React.FC<CanvasProps> = ({
                 cancelAnimationFrame(animationFrameIdRef.current);
             }
         };
-    }, [drawBackground, drawElements, drawAvatars, map]);
+    }, [drawBackground, drawElements, drawAvatars, map, users, position]);
 
-    // Handle keyboard movement
     const handleKeyDown = useCallback(
         (event: KeyboardEvent) => {
             const { key } = event;
-            const speed = 1;
+            const speed = 10;
             const newPosition = { ...position };
 
             switch (key) {

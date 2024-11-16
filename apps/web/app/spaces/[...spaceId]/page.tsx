@@ -88,6 +88,7 @@ const VirtualSpace: React.FC = () => {
     }
 
     setIsConnecting(true);
+
     
     const newSocket = io(socketUrl, {
       auth: { spaceId, token, user },
@@ -130,7 +131,10 @@ const VirtualSpace: React.FC = () => {
         if (data.success) {
           setGameState(prev => ({
             ...prev,
-            position: data.data!.newCoordinates,
+            position: {
+              x:data.data!.newCoordinates.x,
+              y:data.data!.newCoordinates.y
+            },
             users: data.data!.users
           }));
         }

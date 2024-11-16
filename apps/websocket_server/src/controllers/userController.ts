@@ -41,12 +41,13 @@ const createUserState = async (userId: string, socket:Socket, userData?: Partial
   // Fetch user data if not provided
   const user = socket.data.user ||userData ;
   console.log('in the create user state this si the user that i currently have ', user);
+  console.log("gamestate map", socket.data.mapData);
   return {
     id: userId,
     email: user.email || "",
     nickname: user.nickname || "Guest",
     avatarId: user.avatarId,
-    position:  { x: user.PostionX, y: user.positionY },
+    position:  { x: socket.data.mapData.dropX, y: socket.data.mapData.dropY },
     avatar: user.avatar || { id: "", imageUrl: "", name: "" },
   };
 };
