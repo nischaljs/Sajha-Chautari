@@ -1,7 +1,7 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User } from "@/types/Space";
+import{User} from "@/types/User"
 
 interface UserListProps {
   users: User[] | null;
@@ -11,6 +11,7 @@ interface UserListProps {
 const UserList: React.FC<UserListProps> = ({ users = [], currentUserId }) => {
   const DEFAULT_AVATAR_URL =
     "https://cdn.pixabay.com/photo/2024/02/15/14/57/animal-8575560_640.jpg";
+    console.log('users in the space',users);
 
   // Error handling for invalid or null `users` input
   if (!users || users.length === 0) {

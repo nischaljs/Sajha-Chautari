@@ -35,6 +35,8 @@ export function handleMovement(socket: Socket, io: Server) {
         throw new Error("User state not found.");
       }
 
+      console.log("new psoitions ", newPosition.x, newPosition.y);
+
       const updatedState: UserState = {
         ...previousData,
         position: { x: newPosition.x, y: newPosition.y },
@@ -44,18 +46,22 @@ export function handleMovement(socket: Socket, io: Server) {
       // Notify the user about the successful movement
       socket.emit("movementResult", {
         success: true,
-        userId,
-        newCoordinates: newPosition,
-        users: Array.from(userStates[spaceId].values()), // Convert map to array
+        data: {
+          userId,
+          newCoordinates: newPosition,
+          users: Array.from(userStates[spaceId].values()),
+        } // Convert map to array
       });
 
       // Broadcast movement to other users in the same space
       socket.broadcast.to(spaceId).emit("others_moved", {
         success: true,
-        userId,
-        updatedUser: updatedState,
+        data: {
+          userId,
+          updatedUser: updatedState,
+        }
       });
-    } catch (error:any) {
+    } catch (error: any) {
       console.error("Error handling movement:", error);
       socket.emit("movementResult", {
         success: false,

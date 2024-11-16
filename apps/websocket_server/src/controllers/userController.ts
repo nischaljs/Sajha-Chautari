@@ -37,16 +37,16 @@ const cleanupRoom = (spaceId: string): void => {
   }
 };
 
-const createUserState = async (userId: string, userData?: Partial<UserState>): Promise<UserState> => {
+const createUserState = async (userId: string, socket:Socket, userData?: Partial<UserState>): Promise<UserState> => {
   // Fetch user data if not provided
-  const user = userData || (await userService.getUserDetails(userId));
-  console.log("user socket here ", user);
+  const user = socket.data.user ||userData ;
+  console.log('in the create user state this si the user that i currently have ', user);
   return {
     id: userId,
-    email: user.email,
+    email: user.email || "",
     nickname: user.nickname || "Guest",
     avatarId: user.avatarId,
-    position: user.position || { x: 0, y: 0 },
+    position:  { x: user.PostionX, y: user.positionY },
     avatar: user.avatar || { id: "", imageUrl: "", name: "" },
   };
 };
@@ -62,17 +62,18 @@ export const onUserConnected = async (socket: Socket, io: Server) => {
 
     // Add user to the room and update state
     roomUsers[spaceId].add(userId);
-    const userState = await createUserState(userId, userStates[spaceId].get(userId));
+    const userState = await createUserState(userId,socket, userStates[spaceId].get(userId));
     userStates[spaceId].set(userId, userState);
 
     // Send current users to the new user
     const existingUsers = Array.from(userStates[spaceId].values());
-    socket.emit("initialize_space", { success: true, users: existingUsers });
+    console.log("existing user");
+    socket.emit("initialize_space", { success: true, data:{users: existingUsers} });
 
     // Notify other users about the new connection
     socket.broadcast.to(spaceId).emit("join_space", {
       success: true,
-      user: userState,
+     data:{ users: Array.from(userStates[spaceId].values())}
     });
   } catch (error) {
     console.error("Error in onUserConnected:", error);
@@ -95,6 +96,9 @@ export const onUserDisconnected = async (socket: Socket, io: Server) => {
     socket.broadcast.to(spaceId).emit("leave_space", {
       success: true,
       id: userId,
+     data:{
+      users:Array.from(userStates[spaceId].values())
+     }
     });
     socket.leave(spaceId);
   } catch (error) {

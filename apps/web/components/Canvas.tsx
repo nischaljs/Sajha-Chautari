@@ -1,198 +1,186 @@
-// import React, { useEffect, useRef, useState } from "react";
-// import { Position, SpaceElement, User, Map } from "@/types/Space";
-// import Image from "next/image";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { Map, Position, SpaceElement, } from "@/types/Space";
+import{User} from "@/types/User"
 
-// interface CanvasProps {
-//   users: User[];
-//   position: Position;
-//   elements: SpaceElement[];
-//   map: Map | null;
-//   backgroundImageRef: React.RefObject<HTMLImageElement | null>;
-//   elementImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>>;
-//   avatarImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>>;
-//   currentUserId: string;
-//   onMove: (newPosition: Position) => void;
-// }
+interface CanvasProps {
+    users: User[];
+    position: Position;
+    elements: SpaceElement[];
+    map: Map | null;
+    backgroundImageRef: React.RefObject<HTMLImageElement | null>;
+    elementImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>>;
+    avatarImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>>;
+    currentUserId: string;
+    onMove: (newPosition: Position) => void;
+}
 
-// const Canvas: React.FC<CanvasProps> = ({
-//   users,
-//   position,
-//   elements,
-//   map,
-//   backgroundImageRef,
-//   elementImagesRef,
-//   avatarImagesRef,
-//   currentUserId,
-//   onMove,
-// }) => {
-//   const canvasRef = useRef<HTMLCanvasElement>(null);
-//   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
-//   const [animationFrameId, setAnimationFrameId] = useState<number | null>(null);
+const ELEMENT_SIZE = 20; // Element placeholder size
+const AVATAR_RADIUS = 10; // Placeholder avatar circle radius
 
-//   useEffect(() => {
-//     if (canvasRef.current) {
-//       setContext(canvasRef.current.getContext("2d"));
-//     }
-//   }, []);
+const Canvas: React.FC<CanvasProps> = ({
+    users,
+    position,
+    elements,
+    map,
+    backgroundImageRef,
+    elementImagesRef,
+    avatarImagesRef,
+    currentUserId,
+    onMove,
+}) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+    const animationFrameIdRef = useRef<number | null>(null);
 
-//   useEffect(() => {
-//     const animateCanvas = () => {
-//       if (!context || !map) return;
+    // Initialize canvas context
+    useEffect(() => {
+        if (canvasRef.current) {
+            contextRef.current = canvasRef.current.getContext("2d");
+        }
+    }, []);
 
-//       drawBackground();
-//       drawElements();
-//       drawAvatars();
+    // Utility to calculate relative positions for drawing
+    const getRelativePosition = useCallback(
+        (x: number, y: number) => ({
+            x: x - position.x,
+            y: y - position.y,
+        }),
+        [position]
+    );
 
-//       const id = requestAnimationFrame(animateCanvas);
-//       setAnimationFrameId(id);
-//     };
+    // Draw the background
+    const drawBackground = useCallback(() => {
+        const context = contextRef.current;
+        if (!canvasRef.current || !context || !backgroundImageRef.current) return;
 
-//     if (context) {
-//       const id = requestAnimationFrame(animateCanvas);
-//       setAnimationFrameId(id);
-//     }
+        context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-//     return () => {
-//       if (animationFrameId !== null) {
-//         cancelAnimationFrame(animationFrameId);
-//       }
-//     };
-//   }, [context, map, users, position]);
+        const backgroundImg = backgroundImageRef.current;
+        if (backgroundImg.complete && backgroundImg.naturalWidth) {
+            context.drawImage(backgroundImg, 0, 0);
+        } else {
+            console.error("Background image is not ready.");
+        }
+    }, [backgroundImageRef]);
 
-//   const handleKeyDown = (event: KeyboardEvent) => {
-//     const { key } = event;
-//     const speed = 1;
-//     let newPosition: Position = { ...position };
+    // Draw map elements
+    const drawElements = useCallback(() => {
+        const context = contextRef.current;
+        if (!context || !elementImagesRef.current) return;
 
-//     switch (key) {
-//       case "ArrowLeft":
-//         newPosition.x -= speed;
-//         break;
-//       case "ArrowUp":
-//         newPosition.y -= speed;
-//         break;
-//       case "ArrowRight":
-//         newPosition.x += speed;
-//         break;
-//       case "ArrowDown":
-//         newPosition.y += speed;
-//         break;
-//       default:
-//         return;
-//     }
+        elements.forEach((element) => {
+            if (!elementImagesRef.current) return;
+            const img = elementImagesRef.current.get(element.id);
+            const { x, y } = getRelativePosition(element.x, element.y);
 
-//     onMove(newPosition); // Notify parent of new position
-//   };
+            if (img) {
+                context.drawImage(img, x, y);
+            } else {
+                context.fillStyle = "#00FF00"; // Placeholder color
+                context.fillRect(x, y, ELEMENT_SIZE, ELEMENT_SIZE);
+            }
+        });
+    }, [elements, elementImagesRef, getRelativePosition]);
 
-//   useEffect(() => {
-//     window.addEventListener("keydown", handleKeyDown);
-//     return () => window.removeEventListener("keydown", handleKeyDown);
-//   }, [handleKeyDown]);
+    // Draw avatars
+    const drawAvatars = useCallback(() => {
+        const context = contextRef.current;
+        if (!context || !avatarImagesRef.current) return;
 
-//   const drawBackground = () => {
-//     if (!canvasRef.current || !context || !backgroundImageRef.current) return;
+        users.forEach((user) => {
+            const userPosition =
+                user.id === currentUserId ? position : user.position || { x: 0, y: 0 };
+            const { x, y } = getRelativePosition(userPosition.x, userPosition.y);
+            if (!avatarImagesRef.current) return;
 
-//     context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-//     context.drawImage(backgroundImageRef.current, 0, 0);
-//   };
+            let img = avatarImagesRef.current.get(user.id);
 
-//   const drawElements = () => {
-//     if (!context || !elementImagesRef.current) return;
+            if (!img) {
+                // Placeholder avatar image
+                img = new Image();
+                img.src = "https://via.placeholder.com/50";
+                avatarImagesRef.current.set(user.id, img);
+            }
 
-//     elements.forEach((element) => {
-//       // @ts-ignore
-//       const img = elementImagesRef.current ? elementImagesRef.current.get(element.id) : <img
-//         id="source"
-//         src="https://mdn.github.io/shared-assets/images/examples/rhino.jpg"
-//         width="300"
-//         height="227" />;
-//       if (img.complete) {
-//         context.drawImage(
-//           img,
-//           element.x - position.x,
-//           element.y - position.y
-//         );
-//       } else {
-//         // Draw placeholder for element
-//         context.fillStyle = "#00FF00";
-//         context.fillRect(
-//           element.x - position.x,
-//           element.y - position.y,
-//           20,
-//           20
-//         );
-//       }
-//     });
-//   };
+            if (img.complete && img.naturalWidth) {
+                context.drawImage(img, x, y);
+            } else {
+                // Draw placeholder circle
+                context.beginPath();
+                context.arc(x + AVATAR_RADIUS, y + AVATAR_RADIUS, AVATAR_RADIUS, 0, 2 * Math.PI);
+                context.fillStyle = user.id === currentUserId ? "#FFD700" : "#007BFF";
+                context.fill();
+            }
+        });
+    }, [users, avatarImagesRef, currentUserId, position, getRelativePosition]);
 
-//   const drawAvatars = () => {
-//     if (!context || !avatarImagesRef.current) return;
+    // Animation loop
+    useEffect(() => {
+        const animateCanvas = () => {
+            if (!contextRef.current || !map) return;
 
-//     users.forEach((user) => {
-//       // Ensure img exists in avatarImagesRef, else create new Image object
-//       // @ts-ignore
-//       let img = avatarImagesRef.current ? avatarImagesRef.current.get(user.id) : <img
-//         id="source"
-//         src="https://mdn.github.io/shared-assets/images/examples/rhino.jpg"
-//         width="300"
-//         height="227" />;
-//       if (!avatarImagesRef.current) {
-//         img = <img
-//           id="source"
-//           src="https://mdn.github.io/shared-assets/images/examples/rhino.jpg"
-//           width="300"
-//           height="227" />;
-//         // @ts-ignore
-//         avatarImagesRef.current.set(user.id, img);
-//       }
+            drawBackground();
+            drawElements();
+            drawAvatars();
 
-//       // Check if the image has been loaded
-//       if (img.complete) {
-//         const userPosition: Position =
-//           user.id === currentUserId ? position : user.position || { x: 0, y: 0 };
+            animationFrameIdRef.current = requestAnimationFrame(animateCanvas);
+        };
 
-//         // Draw the avatar if image is loaded
-//         context.drawImage(
-//           img,
-//           userPosition.x - position.x,
-//           userPosition.y - position.y
-//         );
-//       } else {
-//         // Set the image source if not already loaded
-//         if (!img.src) {
-//           const DEFAULT_AVATAR_URL = "https://cdn.pixabay.com/photo/2024/02/15/14/57/animal-8575560_640.jpg";
-//           img.src = DEFAULT_AVATAR_URL; // You can customize this URL or fetch it dynamically
-//         }
+        if (contextRef.current) {
+            animationFrameIdRef.current = requestAnimationFrame(animateCanvas);
+        }
 
-//         // Draw placeholder if avatar image isn't available or still loading
-//         const radius = 10;
-//         const userPosition: Position =
-//           user.id === currentUserId ? position : user.position || { x: 0, y: 0 };
+        return () => {
+            if (animationFrameIdRef.current !== null) {
+                cancelAnimationFrame(animationFrameIdRef.current);
+            }
+        };
+    }, [drawBackground, drawElements, drawAvatars, map]);
 
-//         context.beginPath();
-//         context.arc(
-//           userPosition.x - position.x + radius,
-//           userPosition.y - position.y + radius,
-//           radius,
-//           0,
-//           2 * Math.PI
-//         );
-//         context.fillStyle = user.id === currentUserId ? "#FFD700" : "#007BFF";
-//         context.fill();
-//       }
-//     });
-//   };
+    // Handle keyboard movement
+    const handleKeyDown = useCallback(
+        (event: KeyboardEvent) => {
+            const { key } = event;
+            const speed = 1;
+            const newPosition = { ...position };
 
-//   return (
-//     <div style={{ position: "relative" }}>
-//       <canvas
-//         ref={canvasRef}
-//         width={map?.width || 800}
-//         height={map?.height || 600}
-//         style={{ border: "1px solid black" }}
-//       />
-//     </div>
-//   );
-// };
+            switch (key) {
+                case "ArrowLeft":
+                    newPosition.x -= speed;
+                    break;
+                case "ArrowUp":
+                    newPosition.y -= speed;
+                    break;
+                case "ArrowRight":
+                    newPosition.x += speed;
+                    break;
+                case "ArrowDown":
+                    newPosition.y += speed;
+                    break;
+                default:
+                    return;
+            }
 
-// export default Canvas;
+            onMove(newPosition);
+        },
+        [position, onMove]
+    );
+
+    useEffect(() => {
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [handleKeyDown]);
+
+    return (
+        <div style={{ position: "relative" }}>
+            <canvas
+                ref={canvasRef}
+                width={map?.width || 800}
+                height={map?.height || 600}
+                style={{ border: "1px solid black" }}
+            />
+        </div>
+    );
+};
+
+export default Canvas;
