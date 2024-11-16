@@ -17,7 +17,7 @@ import { useUserContextState } from "@/context/UserContext";
 import { User } from "@/types/User";
 
 const initialGameState: GameState = {
-  users:[],
+  users: [],
   position: { x: 0, y: 0 },
   connected: false,
   error: "",
@@ -34,39 +34,55 @@ const VirtualSpace: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const lastMovementRef = useRef<{ position: Position; timestamp: number } | null>(null);
 
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const elementImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const avatarImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
+
   // Fetch initial space data
   useEffect(() => {
     const fetchSpace = async () => {
-      if (!spaceId) return;
-      
       try {
         const response = await api.get<{ data: SpaceDetailsResponse }>(`/arenas/${spaceId}`);
         const spaceData = response.data.data;
-        
-        setGameState(prev => {
-          const newState = {
-            ...prev,
-            spaceDetails: spaceData,
-            map: spaceData.map,
-            elements: spaceData.elements,
-            position: { x: spaceData.map.dropX, y: spaceData.map.dropY },
-          };
-          debugLogger.state('FETCH_SPACE', prev, newState);
-          return newState;
-        });
-      } catch (error) {
-        debugLogger.error('fetchSpace', error);
-        setGameState(prev => ({
+    
+        const transformedUsers = spaceData.users.map((user) => ({
+          id: user.id,
+          email: user.email || "unknown@example.com", // Provide a default value if email is missing
+          nickname: user.nickname,
+          avatarId: user.avatarId || undefined, // Convert `null` to `undefined`
+          position: user.position || { x: spaceData.map.dropX, y: spaceData.map.dropY }, // Default position if missing
+          avatar: user.avatar
+            ? {
+                id: user.avatar.id || "unknown", // Handle missing `id`
+                imageUrl: user.avatar.imageUrl || undefined, // Convert `null` to `undefined`
+                name: user.avatar.name || "Unnamed Avatar", // Provide a default name
+              }
+            : undefined, // Handle missing `avatar`
+        }));
+    
+        setGameState((prev) => ({
           ...prev,
-          error: "Failed to load space data",
+          spaceDetails: spaceData,
+          map: spaceData.map,
+          elements: spaceData.elements || [],
+          position: { x: spaceData.map.dropX, y: spaceData.map.dropY },
+          users: transformedUsers, // Use transformed users
+          connected: true,
+          error: "",
+          currentUserId: prev.currentUserId, // Preserve the current user ID
+        }));
+      } catch (error) {
+        console.error("Failed to fetch space details:", error);
+        setGameState((prev) => ({
+          ...prev,
+          error: "Failed to load space data.",
         }));
       }
     };
+    
 
     fetchSpace();
   }, [spaceId]);
@@ -75,99 +91,121 @@ const VirtualSpace: React.FC = () => {
   useEffect(() => {
     if (isLoading || !spaceId || !user) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      debugLogger.error('socket', 'No token found');
-      return;
-    }
-
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
-    if (!socketUrl) {
-      debugLogger.error('socket', 'Socket URL not found');
-      return;
-    }
+    if (!socketUrl || !localStorage.getItem("token")) return;
 
     setIsConnecting(true);
 
-    
     const newSocket = io(socketUrl, {
-      auth: { spaceId, token, user },
+      auth: {
+        spaceId,
+        token: localStorage.getItem("token"),
+        user
+      },
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
     });
 
-    // Socket event handlers
     const socketEvents = {
       connect: () => {
-        debugLogger.connection(user.id, spaceId);
         setGameState(prev => ({ ...prev, connected: true }));
         setIsConnecting(false);
       },
 
       initialize_space: (data: SocketResponse<{ users: User[]; currentUserId: string }>) => {
-        debugLogger.socket('initialize_space', data);
         if (data.success) {
           setGameState(prev => ({
             ...prev,
-            users: data.data!.users,
+            users: data.data!.users.map(u => ({
+              ...u,
+              position: u.position || { x: prev.map?.dropX || 0, y: prev.map?.dropY || 0 }
+            })),
             currentUserId: data.data!.currentUserId,
           }));
         }
       },
 
+      movementResult: (data: SocketResponse<{ newCoordinates: Position; users: User[]; timestamp: number }>) => {
+        if (data.success) {
+          // Only update if this is the most recent move or server override
+          const shouldUpdate = !lastMovementRef.current ||
+            data.data!.timestamp >= lastMovementRef.current.timestamp;
+
+          if (shouldUpdate) {
+            setGameState(prev => {
+              const updatedUsers = data.data!.users.map(u => {
+                if (u.id === prev.currentUserId) {
+                  return {
+                    ...u,
+                    position: data.data!.newCoordinates,
+                    lastMoveTimestamp: data.data!.timestamp
+                  };
+                }
+                return u;
+              });
+
+              return {
+                ...prev,
+                position: data.data!.newCoordinates,
+                users: updatedUsers
+              };
+            });
+          }
+        } else {
+          // Revert to last known good position on failure
+          if (lastMovementRef.current) {
+            setGameState(prev => ({
+              ...prev,
+              position: lastMovementRef.current!.position,
+              users: prev.users.map(u => {
+                if (u.id === prev.currentUserId) {
+                  return {
+                    ...u,
+                    position: lastMovementRef.current!.position
+                  };
+                }
+                return u;
+              })
+            }));
+          }
+        }
+      },
+
+      others_move: (data: SocketResponse<{ users: User[]; timestamp: number }>) => {
+        if (data.success && data.data) {
+          setGameState(prev => ({
+            ...prev,
+            users: data.data!.users.map(u => ({
+              ...u,
+              position: u.id === prev.currentUserId ? prev.position :
+                (u.position || { x: prev.map?.dropX || 0, y: prev.map?.dropY || 0 }),
+              lastMoveTimestamp: u.id === prev.currentUserId ?
+                (lastMovementRef.current?.timestamp || Date.now()) :
+                u.lastMoveTimestamp
+            }))
+          }));
+        }
+      },
+
       join_space: (data: SocketResponse<{ users: User[] }>) => {
-        debugLogger.socket('join_space', data);
         if (data.success) {
           setGameState(prev => ({
             ...prev,
-            users: data.data!.users,
-          }));
-        }
-      },
-
-      movementResult: (data: SocketResponse<{ newCoordinates: Position; users: User[] }>) => {
-        debugLogger.socket('movementResult', data);
-        if (data.success) {
-          setGameState(prev => ({
-            ...prev,
-            position: {
-              x:data.data!.newCoordinates.x,
-              y:data.data!.newCoordinates.y
-            },
-            users: data.data!.users
-          }));
-        }
-      },
-
-      others_move: (data: SocketResponse<{ users: User[] }>) => {
-        debugLogger.socket('others_move', data);
-        if (data.success) {
-          setGameState(prev => ({
-            ...prev,
-            users: data.data!.users,
-          }));
-        }
-      },
-
-      leave_space: (data: SocketResponse<{ users: User[]; id: string }>) => {
-        debugLogger.socket('leave_space', data);
-        if (data.success) {
-          setGameState(prev => ({
-            ...prev,
-            users: data.data!.users,
+            users: data.data!.users.map(u => ({
+              ...u,
+              position: u.position || { x: prev.map?.dropX || 0, y: prev.map?.dropY || 0 }
+            }))
           }));
         }
       },
 
       disconnect: () => {
-        debugLogger.socket('disconnect', {});
         setGameState(prev => ({ ...prev, connected: false }));
         setIsConnecting(false);
       }
     };
 
-    // Register all socket events
     Object.entries(socketEvents).forEach(([event, handler]) => {
       newSocket.on(event, handler);
     });
@@ -180,11 +218,57 @@ const VirtualSpace: React.FC = () => {
     };
   }, [spaceId, user, isLoading]);
 
+
   const handleMovement = (newPosition: Position) => {
-    if (!socket) return;
-    debugLogger.socket('movement', newPosition);
-    socket.emit("movement", newPosition);
+    console.log("hanele movement")
+    if (!socket || !gameState.map || !gameState.connected) return;
+
+    const { width, height } = gameState.map;
+
+    // Validate boundaries
+    if (newPosition.x < 0 || newPosition.x > width ||
+      newPosition.y < 0 || newPosition.y > height) {
+      return;
+    }
+
+    const moveTimestamp = Date.now();
+    lastMovementRef.current = {
+      position: newPosition,
+      timestamp: moveTimestamp
+    };
+
+    // Update local state immediately for smooth movement
+    setGameState(prev => {
+      const updatedUsers = prev.users.map(u =>
+        u.id === prev.currentUserId
+          ? {
+            ...u,
+            position: newPosition,
+            lastMoveTimestamp: moveTimestamp
+          }
+          : u
+      );
+
+      return {
+        ...prev,
+        position: newPosition,
+        users: updatedUsers
+      };
+    });
+    console.log('movement got emitted');
+
+    // Emit movement to server
+    socket.emit("movement", {
+      x: newPosition.x,
+      y: newPosition.y,
+      timestamp: moveTimestamp
+    });
   };
+
+  
+    useEffect(() => {
+      console.log("GameState updated:", gameState);
+  }, [gameState]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -212,9 +296,9 @@ const VirtualSpace: React.FC = () => {
         onMove={handleMovement}
       />
       {user && (
-        <UserList 
-          users={gameState.users} 
-          currentUserId={user.id} 
+        <UserList
+          users={gameState.users}
+          currentUserId={user.id}
         />
       )}
     </Card>

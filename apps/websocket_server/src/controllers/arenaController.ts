@@ -1,78 +1,107 @@
 import { Server, Socket } from "socket.io";
 import api from "../services/api";
-import { userStates } from "./userController";
-import { UserState } from "./userController";
+import { userStates, UserState } from "./userController";
 
 export function handleMovement(socket: Socket, io: Server) {
-  socket.on("movement", async (newPosition: { x: number; y: number }) => {
+  socket.on("movement", async (data: { x: number; y: number; timestamp: number }) => {
+    const { x, y, timestamp } = data;
     const spaceId = socket.data.spaceId;
     const userId = socket.data.userId;
 
     try {
-      // Ensure user and space are valid
       if (!spaceId || !userId || !userStates[spaceId]) {
         throw new Error("Invalid space or user.");
       }
 
-      // Check if the new position is available
+      const currentState = userStates[spaceId].get(userId);
+      if (!currentState) {
+        throw new Error("User state not found.");
+      }
+
+      // Validate timestamp to prevent out-of-order updates
+      if (currentState.lastMoveTimestamp && currentState.lastMoveTimestamp > timestamp) {
+        socket.emit("movementResult", {
+          success: false,
+          message: "Outdated movement request",
+          data: {
+            newCoordinates: currentState.position,
+            users: Array.from(userStates[spaceId].values()),
+            timestamp: currentState.lastMoveTimestamp
+          }
+        });
+        return;
+      }
+
+      // Basic boundary validation
+      const mapData = socket.data.mapData;
+      if (x < 0 || x > mapData.width || y < 0 || y > mapData.height) {
+        socket.emit("movementResult", {
+          success: false,
+          message: "Position out of bounds",
+          data: {
+            newCoordinates: currentState.position,
+            users: Array.from(userStates[spaceId].values()),
+            timestamp
+          }
+        });
+        return;
+      }
+
+      // Check position availability
       const isOccupied = await checkPositionAvailability(
-        newPosition,
-        socket.data.mapData.width,
-        socket.data.mapData.height
+        { x, y },
+        mapData.width,
+        mapData.height
       );
 
       if (isOccupied) {
         socket.emit("movementResult", {
           success: false,
-          message: "Position is occupied. Cannot move here.",
+          message: "Position is occupied",
+          data: {
+            newCoordinates: currentState.position,
+            users: Array.from(userStates[spaceId].values()),
+            timestamp
+          }
         });
         return;
       }
 
-      // Update user's position in the room state
-      const previousData = userStates[spaceId].get(userId);
-      if (!previousData) {
-        throw new Error("User state not found.");
-      }
-
-      console.log("new psoitions ", newPosition.x, newPosition.y);
-
-      const updatedState: UserState = {
-        ...previousData,
-        position: { x: newPosition.x, y: newPosition.y },
+      // Update user position
+      const updatedState = {
+        ...currentState,
+        position: { x, y },
+        lastMoveTimestamp: timestamp
       };
       userStates[spaceId].set(userId, updatedState);
+      const allUsers = Array.from(userStates[spaceId].values());
 
-      // Notify the user about the successful movement
-      socket.emit("movementResult", {
+      console.log("movement result is to be imitted")
+      // Emit to all users including the moving user
+      io.to(spaceId).emit("movementResult", {
         success: true,
         data: {
-          userId,
-          newCoordinates: newPosition,
-          users: Array.from(userStates[spaceId].values()),
-        } // Convert map to array
-      });
-
-      // Broadcast movement to other users in the same space
-      socket.broadcast.to(spaceId).emit("others_move", {
-        success: true,
-        data: {
-          userId,
-          updatedUser: updatedState,
-          users:Array.from(userStates[spaceId].values()),
+          newCoordinates: { x, y },
+          users: allUsers,
+          timestamp
         }
       });
+
     } catch (error: any) {
       console.error("Error handling movement:", error);
       socket.emit("movementResult", {
         success: false,
-        message: error.message || "Movement failed.",
+        message: error.message || "Movement failed",
+        data: {
+          newCoordinates: userStates[spaceId]?.get(userId)?.position || { x: 0, y: 0 },
+          users: Array.from(userStates[spaceId]?.values() || []),
+          timestamp
+        }
       });
     }
   });
 }
 
-// Utility Function to Check Position Availability
 async function checkPositionAvailability(
   position: { x: number; y: number },
   width: number,
@@ -87,10 +116,7 @@ async function checkPositionAvailability(
         height,
       },
     });
-
-    console.log("what the api has responded for the arena check for collision ", response.data.data);
-
-    return response.data.data; // Assume the API returns a boolean in `data`
+    return response.data.data;
   } catch (error) {
     console.error("Error checking position availability:", error);
     throw new Error("Failed to check position availability.");

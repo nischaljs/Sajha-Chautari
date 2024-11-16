@@ -17,10 +17,13 @@ export interface Space {
 export interface User {
   id: string;
   nickname: string;
+  email?:string;
   avatarId: string | null;
   role: 'Admin' | 'Creator' | 'User';
   position?: Position;
   avatar?: {
+    id?:string;
+    name?:string;
     imageUrl: string | null;
   };
 }

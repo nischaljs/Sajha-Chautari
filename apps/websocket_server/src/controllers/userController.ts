@@ -1,3 +1,4 @@
+// userController.ts
 import { Server, Socket } from "socket.io";
 import { userService } from "../services/userService";
 
@@ -11,6 +12,7 @@ export interface UserState {
     x: number;
     y: number;
   };
+  lastMoveTimestamp?: number;
   avatar?: {
     id: string;
     imageUrl?: string;
@@ -37,17 +39,23 @@ const cleanupRoom = (spaceId: string): void => {
   }
 };
 
-const createUserState = async (userId: string, socket:Socket, userData?: Partial<UserState>): Promise<UserState> => {
-  // Fetch user data if not provided
-  const user = socket.data.user ||userData ;
-  console.log('in the create user state this si the user that i currently have ', user);
-  console.log("gamestate map", socket.data.mapData);
+const createUserState = async (
+  userId: string, 
+  socket: Socket, 
+  userData?: Partial<UserState>
+): Promise<UserState> => {
+  const user = socket.data.user || userData;
+  
   return {
     id: userId,
     email: user.email || "",
     nickname: user.nickname || "Guest",
     avatarId: user.avatarId,
-    position:  { x: socket.data.mapData.dropX, y: socket.data.mapData.dropY },
+    position: { 
+      x: socket.data.mapData.dropX, 
+      y: socket.data.mapData.dropY 
+    },
+    lastMoveTimestamp: Date.now(),
     avatar: user.avatar || { id: "", imageUrl: "", name: "" },
   };
 };
@@ -57,24 +65,27 @@ export const onUserConnected = async (socket: Socket, io: Server) => {
   const { spaceId, userId } = socket.data;
 
   try {
-    // User joins the space
     socket.join(spaceId);
     initializeRoom(spaceId);
 
-    // Add user to the room and update state
     roomUsers[spaceId].add(userId);
-    const userState = await createUserState(userId,socket, userStates[spaceId].get(userId));
+    const userState = await createUserState(userId, socket, userStates[spaceId]?.get(userId));
     userStates[spaceId].set(userId, userState);
 
-    // Send current users to the new user
     const existingUsers = Array.from(userStates[spaceId].values());
-    console.log("existing user");
-    socket.emit("initialize_space", { success: true, data:{users: existingUsers} });
+    socket.emit("initialize_space", { 
+      success: true, 
+      data: {
+        users: existingUsers,
+        currentUserId: userId
+      }
+    });
 
-    // Notify other users about the new connection
     socket.broadcast.to(spaceId).emit("join_space", {
       success: true,
-     data:{ users: Array.from(userStates[spaceId].values())}
+      data: { 
+        users: Array.from(userStates[spaceId].values())
+      }
     });
   } catch (error) {
     console.error("Error in onUserConnected:", error);
@@ -86,20 +97,17 @@ export const onUserDisconnected = async (socket: Socket, io: Server) => {
   const { spaceId, userId } = socket.data;
 
   try {
-    // Remove user from room and state
     roomUsers[spaceId]?.delete(userId);
     userStates[spaceId]?.delete(userId);
 
-    // Clean up empty rooms
     cleanupRoom(spaceId);
 
-    // Notify other users about the disconnection
     socket.broadcast.to(spaceId).emit("leave_space", {
       success: true,
       id: userId,
-     data:{
-      users:Array.from(userStates[spaceId].values())
-     }
+      data: {
+        users: Array.from(userStates[spaceId]?.values() || [])
+      }
     });
     socket.leave(spaceId);
   } catch (error) {

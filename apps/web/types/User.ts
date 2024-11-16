@@ -3,6 +3,7 @@ export interface User {
     email: string;
     nickname: string;
     avatarId?: string;
+    lastMoveTimestamp?: number;
     position?: {
       x: number;
       y: number;
