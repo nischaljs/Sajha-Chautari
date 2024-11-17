@@ -84,7 +84,7 @@ export const onUserConnected = async (socket: Socket, io: Server) => {
     socket.broadcast.to(spaceId).emit("join_space", {
       success: true,
       data: { 
-        users: Array.from(userStates[spaceId].values())
+        user: socket.data.user
       }
     });
   } catch (error) {

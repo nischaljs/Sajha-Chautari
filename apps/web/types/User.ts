@@ -4,6 +4,7 @@ export interface User {
     nickname: string;
     avatarId?: string;
     lastMoveTimestamp?: number;
+    role?: 'Admin' | 'Creator' | 'User';
     position?: {
       x: number;
       y: number;

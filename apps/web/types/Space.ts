@@ -16,15 +16,19 @@ export interface Space {
 
 export interface User {
   id: string;
+  email: string;
   nickname: string;
-  email?:string;
-  avatarId: string | null;
-  role: 'Admin' | 'Creator' | 'User';
-  position?: Position;
+  avatarId?: string;
+  lastMoveTimestamp?: number;
+  role?: 'Admin' | 'Creator' | 'User';
+  position?: {
+    x: number;
+    y: number;
+  };
   avatar?: {
-    id?:string;
-    name?:string;
-    imageUrl: string | null;
+    id: string;
+    imageUrl?: string;
+    name?: string;
   };
 }
 
@@ -49,7 +53,7 @@ export interface SpaceElement {
   element: Element;
 }
 
-export interface Map {
+export interface GameMap {
   id: string;
   width: number;
   height: number;
@@ -72,32 +76,18 @@ export interface SpaceDetailsResponse {
   name: string;
   capacity: number;
   elements: SpaceElement[];
-  map: Map;
+  map: GameMap;
   creator: User;
   users: User[];
 }
 
 
 export interface GameState {
-  users: {
-    id: string;
-    email: string;
-    nickname: string;
-    avatarId?: string;
-    position?: {
-      x: number;
-      y: number;
-    };
-    avatar?: {
-      id: string;
-      imageUrl?: string;
-      name?: string;
-    };
-  }[];
+  users:User[];
   position: Position;
   connected: boolean;
   error: string;
-  map: Map | null;
+  map: GameMap | null;
   elements: SpaceElement[];
   spaceDetails: SpaceDetailsResponse | null;
   currentUserId: string;

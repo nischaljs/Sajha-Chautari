@@ -47,7 +47,7 @@ const VirtualSpace: React.FC = () => {
       try {
         const response = await api.get<{ data: SpaceDetailsResponse }>(`/arenas/${spaceId}`);
         const spaceData = response.data.data;
-    
+
         const transformedUsers = spaceData.users.map((user) => ({
           id: user.id,
           email: user.email || "unknown@example.com", // Provide a default value if email is missing
@@ -56,13 +56,13 @@ const VirtualSpace: React.FC = () => {
           position: user.position || { x: spaceData.map.dropX, y: spaceData.map.dropY }, // Default position if missing
           avatar: user.avatar
             ? {
-                id: user.avatar.id || "unknown", // Handle missing `id`
-                imageUrl: user.avatar.imageUrl || undefined, // Convert `null` to `undefined`
-                name: user.avatar.name || "Unnamed Avatar", // Provide a default name
-              }
+              id: user.avatar.id || "unknown", // Handle missing `id`
+              imageUrl: user.avatar.imageUrl || undefined, // Convert `null` to `undefined`
+              name: user.avatar.name || "Unnamed Avatar", // Provide a default name
+            }
             : undefined, // Handle missing `avatar`
         }));
-    
+
         setGameState((prev) => ({
           ...prev,
           spaceDetails: spaceData,
@@ -82,7 +82,7 @@ const VirtualSpace: React.FC = () => {
         }));
       }
     };
-    
+
 
     fetchSpace();
   }, [spaceId]);
@@ -172,31 +172,28 @@ const VirtualSpace: React.FC = () => {
         }
       },
 
-      others_move: (data: SocketResponse<{ users: User[]; timestamp: number }>) => {
-        if (data.success && data.data) {
+      others_move: (data: SocketResponse<{ newCoordinates: Position; timestamp: number; movedUserId: string; }>) => {
+        console.log('other moved')
+        if (data.success) {
           setGameState(prev => ({
             ...prev,
-            users: data.data!.users.map(u => ({
-              ...u,
-              position: u.id === prev.currentUserId ? prev.position :
-                (u.position || { x: prev.map?.dropX || 0, y: prev.map?.dropY || 0 }),
-              lastMoveTimestamp: u.id === prev.currentUserId ?
-                (lastMovementRef.current?.timestamp || Date.now()) :
-                u.lastMoveTimestamp
-            }))
+            users: prev.users.map(user =>
+              user.id === data.data!.movedUserId
+                ? { ...user, position: data.data!.newCoordinates }
+                : user
+            ),
           }));
         }
       },
 
-      join_space: (data: SocketResponse<{ users: User[] }>) => {
+      join_space: (data: SocketResponse<{ user: User }>) => {
+        console.log('someone joined the space', user)
         if (data.success) {
           setGameState(prev => ({
             ...prev,
-            users: data.data!.users.map(u => ({
-              ...u,
-              position: u.position || { x: prev.map?.dropX || 0, y: prev.map?.dropY || 0 }
-            }))
+            users: [...prev.users, data.data!.user],
           }));
+
         }
       },
 
@@ -265,9 +262,9 @@ const VirtualSpace: React.FC = () => {
     });
   };
 
-  
-    useEffect(() => {
-      console.log("GameState updated:", gameState);
+
+  useEffect(() => {
+    console.log("GameState updated:", gameState);
   }, [gameState]);
 
   if (isLoading) {
