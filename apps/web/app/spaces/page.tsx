@@ -13,36 +13,99 @@ import { useEffect, useState } from "react";
 
 export default function SpacesPage() {
   const user = useUserContext();
-  const [activeTab, setActiveTab] = useState<string>("joined");
+  const [activeTab, setActiveTab] = useState<string>("public");
   const [spaces, setSpaces] = useState<Space[]>([]);
+  const [publicSpaces, setPublicSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
 
   useEffect(() => {
-    fetchSpaces();
-  }, []);
+    handleTabChange(activeTab);
+  }, [activeTab]);
 
-  async function fetchSpaces() {
+  const handleTabChange = async (tab: string) => {
     setLoading(true);
+    setError("");
     try {
-      const response = await api.get("/spaces/");
-      if (!response?.data?.success) {
-        throw new Error("Failed to fetch spaces");
+      if (tab === "public") {
+        await fetchPublicSpaces();
+      } else {
+        await fetchSpaces();
       }
-      setSpaces(response.data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load spaces");
     } finally {
       setLoading(false);
     }
+  };
+
+  async function fetchPublicSpaces() {
+    try {
+      const response = await api.get("/spaces/public");
+      if (!response?.data?.success) {
+        throw new Error("Failed to fetch public spaces");
+      }
+      // Ensure we're setting an array
+      setPublicSpaces(Array.isArray(response.data.data) ? response.data.data : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load public spaces");
+      setPublicSpaces([]); // Set empty array on error
+    }
   }
 
-  const createdSpaces = spaces.filter(space => space.creator.id === user?.id);
-  const joinedSpaces = spaces.filter(space => space.creator.id !== user?.id);
+  async function fetchSpaces() {
+    try {
+      const response = await api.get("/spaces/");
+      if (!response?.data?.success) {
+        throw new Error("Failed to fetch spaces");
+      }
+      // Ensure we're setting an array
+      setSpaces(Array.isArray(response.data.data) ? response.data.data : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load spaces");
+      setSpaces([]); // Set empty array on error
+    }
+  }
 
-  const isJoinedTab = activeTab === "joined";
-  const filteredSpaces = isJoinedTab ? joinedSpaces : createdSpaces;
+  const getDisplaySpaces = (): Space[] => {
+    if (activeTab === "public") {
+      return publicSpaces;
+    }
+    if (activeTab === "joined") {
+      return spaces.filter(space => space.creator.id !== user?.id);
+    }
+    return spaces.filter(space => space.creator.id === user?.id);
+  };
+
+  const getEmptyStateContent = () => {
+    switch (activeTab) {
+      case "public":
+        return {
+          title: "No Public Spaces Available",
+          description: "Currently there are no public spaces available to join. Why not create one?",
+          actionText: "Create Public Space",
+          actionPath: "/spaces/create"
+        };
+      case "joined":
+        return {
+          title: "No Joined Spaces",
+          description: "You haven't joined any spaces yet. Browse public spaces to find communities to join!",
+          actionText: "Browse Public Spaces",
+          actionPath: "/spaces/browse"
+        };
+      default:
+        return {
+          title: "No Created Spaces",
+          description: "You haven't created any spaces yet. Create your first space to start collaborating!",
+          actionText: "Create Space",
+          actionPath: "/spaces/create"
+        };
+    }
+  };
+
+  const displaySpaces = getDisplaySpaces();
+  const emptyState = getEmptyStateContent();
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -61,49 +124,48 @@ export default function SpacesPage() {
             </Button>
           </div>
 
-          <Tabs defaultValue="joined" className="w-full" onValueChange={setActiveTab}>
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+          <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="public">Public Spaces</TabsTrigger>
               <TabsTrigger value="joined">Joined Spaces</TabsTrigger>
               <TabsTrigger value="created">Created Spaces</TabsTrigger>
             </TabsList>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mt-6">
-                {error}
-              </div>
-            )}
             <div className="mt-6">
-              {loading || !user ? (
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+                  <p className="font-medium">Error loading spaces</p>
+                  <p className="text-sm">{error}</p>
+                </div>
+              )}
+
+              {loading ? (
                 <div className="flex justify-center items-center h-64">
                   <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                 </div>
-              ) : filteredSpaces.length === 0 ? (
+              ) : !displaySpaces || displaySpaces.length === 0 ? (
                 <Card className="bg-white">
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <div className="rounded-full bg-blue-50 p-3 mb-4">
                       <Users className="h-6 w-6 text-blue-500" />
                     </div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      {isJoinedTab ? "No joined spaces yet" : "No created spaces yet"}
+                      {emptyState.title}
                     </h3>
                     <p className="text-gray-500 text-center max-w-sm mb-6">
-                      {isJoinedTab
-                        ? "Join others space as well to start collaborating with others"
-                        : "Create your first space to begin your journey"}
+                      {emptyState.description}
                     </p>
-                    <Button
-                      onClick={() =>
-                        isJoinedTab
-                          ? router.push("/spaces/browse")
-                          : router.push("/spaces/create")
-                      }
-                    >
-                      {isJoinedTab ? "Browse Spaces" : "Create Space"}
+                    <Button onClick={() => router.push(emptyState.actionPath)}>
+                      {emptyState.actionText}
                     </Button>
                   </CardContent>
                 </Card>
               ) : (
-                <SpacesCard user={user} filteredSpaces={filteredSpaces} router={router} />
+                <SpacesCard 
+                  user={user} 
+                  filteredSpaces={displaySpaces} 
+                  router={router} 
+                />
               )}
             </div>
           </Tabs>

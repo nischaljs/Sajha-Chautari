@@ -169,18 +169,5 @@ async function checkPositionAvailability(
   width: number,
   height: number
 ): Promise<boolean> {
-  try {
-    const response = await api.get(`/arenas/check-position`, {
-      params: {
-        x: position.x,
-        y: position.y,
-        width,
-        height,
-      },
-    });
-    return response.data.data;
-  } catch (error) {
-    console.error("Error checking position availability:", error);
-    throw new Error("Failed to check position availability.");
-  }
+ return false;
 }

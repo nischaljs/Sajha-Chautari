@@ -8,7 +8,7 @@ import Image from "next/image";
 
 interface SpacesCardProps {
     filteredSpaces: Space[],
-    user: User,
+    user: User | null,
     router:AppRouterInstance
 }
 

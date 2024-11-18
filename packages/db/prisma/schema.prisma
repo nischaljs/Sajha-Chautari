@@ -31,6 +31,7 @@ model Space {
   name      String
   mapId     String
   capacity  Int
+  public    Boolean        @default(false)
   users     User[]         @relation("UserSpaces")
   creatorId String
   creator   User           @relation("Creator", fields: [creatorId], references: [id], onDelete: Cascade)

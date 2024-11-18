@@ -104,8 +104,8 @@ export const onUserDisconnected = async (socket: Socket, io: Server) => {
 
     socket.broadcast.to(spaceId).emit("leave_space", {
       success: true,
-      id: userId,
       data: {
+        id: userId,
         users: Array.from(userStates[spaceId]?.values() || [])
       }
     });

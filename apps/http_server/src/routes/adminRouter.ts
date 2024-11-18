@@ -3,11 +3,14 @@ import authmiddleware, { role } from "../middlewares/authmiddleware";
 import { AppError } from "../utils/AppError";
 import { HttpStatusCode } from "axios";
 import {
+  addElements,
   addMapElementsControllers,
   createAvatar,
   createMapController,
   updateElement,
+  getMapDetailsController
 } from "../controllers/admin.controller";
+import upload from "../middlewares/multerMiddleware";
 
 const adminRouter = express.Router();
 
@@ -23,13 +26,17 @@ adminRouter.use((req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-adminRouter.post("/elements");
+
+adminRouter.post("/elements",upload.single("imageFile"),addElements);
 
 adminRouter.put("/:elementId", updateElement);
 
+
+adminRouter.get("/maps/:mapId",getMapDetailsController);
+
 adminRouter.post("/avatars", createAvatar);
 
-adminRouter.post("/maps", createMapController);
+adminRouter.post("/maps",upload.single("thumbnail"), createMapController);
 
 adminRouter.post("/map/element", addMapElementsControllers);
 

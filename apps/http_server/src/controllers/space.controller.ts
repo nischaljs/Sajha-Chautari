@@ -188,3 +188,27 @@ export const getAllMaps = async(req:Request, res:Response, next:NextFunction) =>
     next(error);
   }
 }
+
+
+export const getPublicSpaces = async(req:Request,res:Response,next:NextFunction)=>{
+try {
+  const publicSpaces = prisma.space.findMany({
+    where:{
+      public:true
+    }
+  });
+  res.status(HttpStatusCode.Ok).json(new SuccessResponse("Public spaces retrieved successfully",publicSpaces));
+} catch (error) {
+  next(error);
+}
+}
+
+export const getAllELements = async (req:Request,res:Response,next:NextFunction)=>{
+  try {
+    const elements =  await prisma.element.findMany();
+
+    res.status(HttpStatusCode.Ok).json(new SuccessResponse("Elements retrieved succesffuly", elements))
+  } catch (error) {
+    next(error);
+  }
+}

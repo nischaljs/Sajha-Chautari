@@ -16,15 +16,18 @@ export const addElements = async (
   next: NextFunction,
 ) => {
   try {
+    console.log('add elements',req.body);
     const data = addElementAdminSchema.safeParse(req.body);
+    console.log(data.error);
     if (!data.success) {
       throw new AppError(HttpStatusCode.BadRequest, "Invalid element Data");
     }
+    console.log("passed the parse")
     const element = data.data;
     const createdElement = await prisma.element.create({
       data: {
         name: element.name,
-        imageUrl: element.imageUrl,
+        imageUrl: req.file?.filename || '',
         static: element.static,
         height: element.height,
         width: element.width,
@@ -92,11 +95,13 @@ export const createAvatar = async (
 };
 
 export const createMapController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
+  req: Request, 
+  res: Response, 
+  next: NextFunction
 ) => {
   try {
+    console.log("reached ehre in the ma controller", req.file?.filename)
+    console.log(req.body);
     const parsedData = createMapSchema.safeParse(req.body);
 
     if (!parsedData.success) {
@@ -107,17 +112,20 @@ export const createMapController = async (
     const createdMap = await prisma.map.create({
       data: {
         name: mapData.name,
-        thumbnail: mapData.thumbnail,
+        thumbnail: req.file?.filename || '', // Use file path
         height: mapData.height,
         width: mapData.width,
-        dropX: mapData.dropX,
-        dropY: mapData.dropY,
+        dropX: Math.floor(mapData.width / 2),   // Centered drop point
+        dropY: Math.floor(mapData.height / 2),
       },
     });
 
     res
       .status(HttpStatusCode.Created)
-      .json(new SuccessResponse("Map created Successfully", createdMap));
+      .json(new SuccessResponse("Map created Successfully", {
+        map: createdMap,
+        dropPoint: { x: createdMap.dropX, y: createdMap.dropY }
+      }));
   } catch (error) {
     next(error);
   }
@@ -182,6 +190,47 @@ export const addMapElementsControllers = async (
     res
       .status(HttpStatusCode.Ok)
       .json(new SuccessResponse("Elements processed", mapElements));
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const getMapDetailsController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const mapId = req.params.mapId;
+
+    // Fetch map details with associated map elements
+    const mapDetails = await prisma.map.findUnique({
+      where: { id: mapId },
+      include: {
+        mapElements: {
+          include: {
+            element: true // Include full element details
+          }
+        }
+      }
+    });
+
+    if (!mapDetails) {
+      throw new AppError(HttpStatusCode.NotFound, "Map not found");
+    }
+
+    // Transform map elements to match frontend structure
+    const mappedElements = mapDetails.mapElements.map(mapElement => ({
+      ...mapElement.element,
+      position: { x: mapElement.x, y: mapElement.y },
+      canvasId: mapElement.id // Use map element ID as canvas ID
+    }));
+
+    res.status(HttpStatusCode.Ok).json(new SuccessResponse("Map details retrieved", {
+      map: mapDetails,
+      elements: mappedElements
+    }));
   } catch (error) {
     next(error);
   }

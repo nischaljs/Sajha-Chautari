@@ -197,6 +197,15 @@ const VirtualSpace: React.FC = () => {
         }
       },
 
+      leave_space:(data:SocketResponse<{id:string}>)=>{
+        if(data.success){
+          setGameState(prev=>({
+            ...prev,
+            users:prev.users.filter((user)=>user.id!=data.data!.id),
+          }))
+        }
+      },
+
       disconnect: () => {
         setGameState(prev => ({ ...prev, connected: false }));
         setIsConnecting(false);
