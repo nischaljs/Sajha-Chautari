@@ -17,6 +17,8 @@ interface Map {
 }
 
 const AdminDashboard: React.FC = () => {
+    const mapBaseUrl = process.env.NEXT_PUBLIC_HTTP_MAP;
+    const objectBaseUrl = process.env.NEXT_PUBLIC_HTTP_OBJECT;
     const [availableMaps, setAvailableMaps] = useState<Map[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -27,6 +29,7 @@ const AdminDashboard: React.FC = () => {
             try {
                 setLoading(true);
                 const response = await api.get("/spaces/maps");
+                console.log(response.data);
                 setAvailableMaps(response.data.data || []);
                 setError(null);
             } catch (err) {
@@ -46,7 +49,7 @@ const AdminDashboard: React.FC = () => {
                 <CardHeader className="space-y-1 bg-gradient-to-r from-blue-600 to-blue-700">
                     <div className="flex items-center justify-between px-2">
                         <CardTitle className="text-2xl font-bold text-white">Map Management Dashboard</CardTitle>
-                       <button onClick={()=>(router.push('/admindash/createMap'))} > create map</button>
+                        <button onClick={() => (router.push('/admindash/createMap'))} > create map</button>
                     </div>
                 </CardHeader>
                 <CardContent className="p-6">
@@ -70,7 +73,7 @@ const AdminDashboard: React.FC = () => {
                                             <div className="flex items-center space-x-4">
                                                 <div className="relative w-20 h-20 rounded-md overflow-hidden">
                                                     <Image
-                                                        src={map.thumbnail || '/api/placeholder/80/80'}
+                                                        src={mapBaseUrl+map.thumbnail || '/api/placeholder/80/80'}
                                                         alt={map.name}
                                                         fill
                                                         className="object-cover"
@@ -83,7 +86,8 @@ const AdminDashboard: React.FC = () => {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <Button variant="outline" size="sm" className="text-blue-600 hover:text-blue-700">
+                                            <Button variant="outline" size="sm" className="text-blue-600 hover:text-blue-700"
+                                            onClick={()=>(router.push(`/admindash/${map.id}`))}>
                                                 <Settings2 className="w-4 h-4 mr-1" />
                                                 Edit
                                             </Button>
@@ -94,7 +98,7 @@ const AdminDashboard: React.FC = () => {
                                 <div className="text-center py-12 px-4">
                                     <div className="text-gray-400 mb-4">No maps available</div>
                                     <Button
-                                        onClick={()=>(router.push('/admindash/createMap'))}
+                                        onClick={() => (router.push('/admindash/createMap'))}
                                         className="bg-blue-600 hover:bg-blue-700 text-white"
                                     >
                                         <PlusIcon className="w-4 h-4 mr-2" />

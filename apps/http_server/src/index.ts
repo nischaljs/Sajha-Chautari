@@ -4,9 +4,13 @@ import express, { Express, Request, Response } from "express";
 import { GlobalErrorHandler } from "../middlewares/GlobalErrorHandler";
 import mainRouter from "./routes";
 import cors from "cors";
+import path from "path";
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
+
+//server static files from the public directory
+app.use('/uploads',express.static(path.join(__dirname, 'public/uploads')));
 
 app.use(express.json());
 app.use(cors());

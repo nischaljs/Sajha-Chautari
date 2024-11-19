@@ -45,7 +45,7 @@ export const addElementAdminSchema = z.object({
     if(isNaN(numberValue)){
       throw new Error("width should be a number ");
     }
-    return numberValue;
+    return numberValue;1
   }),
   height: z.string().transform((val)=>{
     const numberVal = Number(val);

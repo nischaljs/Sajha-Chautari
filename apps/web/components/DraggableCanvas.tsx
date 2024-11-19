@@ -81,4 +81,4 @@ export const DraggableCanvas: React.FC<DraggableCanvasProps> = ({
       </div>
     </div>
   );
-};
+};                                                                                    
