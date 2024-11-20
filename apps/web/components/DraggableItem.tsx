@@ -1,46 +1,91 @@
-
-"use state"
-
-import { Trash2 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 
 interface DraggableItemProps {
-    children: React.ReactNode;
-    id: number | string;
-    initialPosition: { x: number; y: number };
-    gridSize: number;
-    elementData?: any;  // Optional additional element metadata
-  }
-  
-  export const DraggableItem: React.FC<DraggableItemProps> = ({ 
-    children, 
-    id, 
-    initialPosition, 
-    gridSize,
-    elementData 
-  }) => {
-    const [position, setPosition] = useState(initialPosition);
-  
-    const handleDragOver = (e: React.DragEvent) => {
-      e.preventDefault();
-      // Snap to grid logic
-      const snappedX = Math.round(e.clientX / gridSize) * gridSize;
-      const snappedY = Math.round(e.clientY / gridSize) * gridSize;
-      
-      setPosition({ x: snappedX, y: snappedY });
-    };
-  
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          left: position.x,
-          top: position.y,
-          cursor: 'move'
-        }}
-        onDragOver={handleDragOver}
-      >
-        {children}
-      </div>
-    );
+  id: number;
+  initialPosition: { x: number; y: number };
+  initialSize?: { width: number; height: number };
+  gridSize: number;
+  children: React.ReactNode;
+  onPositionChange?: (id: number, position: { x: number; y: number }) => void;
+  onDelete?: (position: { x: number; y: number }) => void; // New prop for deletion
+}
+
+export const DraggableItem: React.FC<DraggableItemProps> = ({
+  id,
+  initialPosition,
+  initialSize,
+  gridSize,
+  children,
+  onDelete
+}) => {
+  const [position, setPosition] = useState(initialPosition);
+  const [size] = useState(initialSize || { width: 100, height: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  // Handle dragging
+  const handleMouseDown = (e: React.MouseEvent) => {
+    console.log("postion" ,position);
+    if (e.target === elementRef.current) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+    }
   };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      const newX = Math.round((e.clientX - dragStart.x) / gridSize) * gridSize;
+      const newY = Math.round((e.clientY - dragStart.y) / gridSize) * gridSize;
+      
+      setPosition({ x: newX, y: newY });
+    }
+  }, [isDragging, dragStart, gridSize, id]);
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering drag when clicking delete
+    onDelete?.(position);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove]);
+
+  return (
+    <div
+      ref={elementRef}
+      className="absolute cursor-move group"
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        width: `${size.width}px`,
+        height: `${size.height}px`
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      {/* Delete button */}
+      <button
+        onClick={handleDelete}
+        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+      >
+        <X size={16} />
+      </button>
+      
+      {children}
+    </div>
+  );
+};

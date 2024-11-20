@@ -8,6 +8,8 @@ interface DraggableCanvasProps {
   backgroundColor: string;
   gridSize: number;
   showGrid: boolean;
+  position:{x:number,y:number};
+  setPosition:({x,y}:{x:number,y:number})=>void
 }
 
 export const DraggableCanvas: React.FC<DraggableCanvasProps> = ({
@@ -17,8 +19,9 @@ export const DraggableCanvas: React.FC<DraggableCanvasProps> = ({
   backgroundColor,
   gridSize,
   showGrid,
+  position,
+  setPosition
 }) => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
@@ -81,4 +84,4 @@ export const DraggableCanvas: React.FC<DraggableCanvasProps> = ({
       </div>
     </div>
   );
-};                                                                                    
+};

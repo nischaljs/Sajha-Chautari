@@ -8,6 +8,10 @@ import MapEditorToolbar from "@/components/MapEditorToolbar";
 import api from "@/utils/axiosInterceptor";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
+import { Minimap } from "@/components/MiniMap";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import IsSaving from "@/components/IsSaving";
+import { Position } from "@/types/Space";
 
 // Define Element interface to match backend
 interface Element {
@@ -41,25 +45,30 @@ const MapEditor: React.FC = () => {
     const [backgroundColor, setBackgroundColor] = useState("#ffffff");
     const [showGrid, setShowGrid] = useState(true);
     const [gridSize, setGridSize] = useState(32);
+    const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+    const [position, setPosition] = useState({ x: 0, y: 0 });
 
+    
     // Elements States
     const [availableElements, setAvailableElements] = useState<Element[]>([]);
     const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([]);
 
+    const { isSaving } = useAutoSave(mapId, canvasItems, 10000);
+    
     // File and Submission States
     const backgroundInputRef = useRef<HTMLInputElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Use effect to get mapId from URL
     useEffect(() => {
-        const id = params.mapId ? String(params.mapId):null
+        const id = params.mapId ? String(params.mapId) : null
         setMapId(id);
     }, []);
 
     // Fetch map details
     useEffect(() => {
         const fetchMapDetails = async () => {
-            console.log('mapId is present',mapId);
+            console.log('mapId is present', mapId);
             if (mapId && mapId !== 'createMap') {
                 try {
                     const response = await api.get(`/admin/maps/${mapId}`);
@@ -150,9 +159,6 @@ const MapEditor: React.FC = () => {
 
             if (response.data.success) {
                 const newMapId = response.data.data.map.id;
-                // Optionally save map elements
-                await saveMapElements(newMapId);
-
                 // Navigate to the new map editor
                 router.push(`/${newMapId}`);
 
@@ -166,23 +172,20 @@ const MapEditor: React.FC = () => {
         }
     };
 
-    // Save Map Elements
-    const saveMapElements = async (mapId: string) => {
-        try {
-            const elementPositions = canvasItems.map(item => ({
-                elementId: item.id,
-                x: item.position.x,
-                y: item.position.y
-            }));
-
-            await api.post("/admin/map/element", {
-                mapId,
-                defaultElements: elementPositions
+    useEffect(() => {
+        const updateViewportSize = () => {
+            setViewportSize({
+                width: window.innerWidth,
+                height: window.innerHeight
             });
-        } catch (error) {
-            console.error("Failed to save map elements", error);
-        }
-    };
+        };
+
+        updateViewportSize();
+        window.addEventListener('resize', updateViewportSize);
+        return () => window.removeEventListener('resize', updateViewportSize);
+    }, []);
+
+
 
     // Handle Drag Start for Elements
     const handleDragStart = (element: Element, e: React.DragEvent) => {
@@ -195,44 +198,61 @@ const MapEditor: React.FC = () => {
                 height: element.height,
                 static: element.static
             });
-
+            console.log(elementJson)
             e.dataTransfer?.setData('application/json', elementJson);
         } catch (error) {
             console.error("Error during drag start", error);
         }
     };
 
+    const snapToGrid = (coordinate: number): number => {
+        return Math.round(coordinate / gridSize) * gridSize;
+      };
+
     // Handle Drop on Canvas
     const handleCanvasDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-
         try {
-            const jsonData = e.dataTransfer?.getData('application/json');
-            const elementData = jsonData
-                ? JSON.parse(jsonData)
-                : JSON.parse(e.dataTransfer?.getData('text/plain') || '{}');
+          // Snap the x and y coordinates to the grid
+          const snappedX = snapToGrid(e.clientX);
+          const snappedY = snapToGrid(e.clientY);
+      
+          // Try parsing the dropped data
+          const data = e.dataTransfer.getData('application/json');
+          
+          
+          const parsedData = JSON.parse(data);
+          console.log("after drop", parsedData)
+          // Check if necessary properties exist
 
-            if (elementData.id) {
-                const canvasItem: CanvasItem = {
-                    ...elementData,
-                    canvasId: Date.now(),
-                    position: {
-                        x: Math.round(e.clientX / gridSize) * gridSize,
-                        y: Math.round(e.clientY / gridSize) * gridSize
-                    }
-                };
-
-                setCanvasItems(prev => [...prev, canvasItem]);
-            }
-        } catch (error) {
-            console.error("Error parsing drag data", error);
+      
+          // Process the element with snapped position
+          const element = { ...parsedData,position:{ x: snappedX, y: snappedY}};
+          console.log('Dropped element:', element);
+          console.log("canvas elements",canvasItems);
+          setCanvasItems((prev)=> ([...prev,element]));
+        } catch (error:any) {
+          // Log error details and alert the user
+          console.error('Error processing drop:', error);
+          alert(`An error occurred: ${error.message}. Please try again.`);
         }
-    };
+      };
+
+      
 
     // Remove last added canvas item
     const removeLastCanvasItem = () => {
         setCanvasItems(prev => prev.slice(0, -1));
     };
+
+    const handleItemDelete = (position:Position) => {
+        if(canvasItems.length==1){
+            removeLastCanvasItem();
+        }
+        console.log('delete triggered for this element at this position ', position);
+        setCanvasItems(prev => prev.filter(element => element?.position !== position));
+
+    }
+
 
     return (
         <div
@@ -255,6 +275,8 @@ const MapEditor: React.FC = () => {
                 isSubmitting={isSubmitting}
                 canvasItems={canvasItems}
                 removeLastCanvasItem={removeLastCanvasItem}
+                setShowGrid={() => (setShowGrid((prev) => (!prev)))}
+                showGrid={showGrid}
             />
 
             {/* Draggable Canvas */}
@@ -264,13 +286,16 @@ const MapEditor: React.FC = () => {
                 backgroundColor={backgroundColor}
                 gridSize={gridSize}
                 showGrid={showGrid}
+                position={position}
+                setPosition={setPosition}
             >
-                {canvasItems.map((item) => (
+                {canvasItems.map((item, index) => (
                     <DraggableItem
-                        key={item.canvasId}
+                        key={item.id+index}
                         id={item.canvasId}
                         initialPosition={item.position}
                         gridSize={gridSize}
+                        onDelete={handleItemDelete}
                     >
 
                         <Image
@@ -284,6 +309,17 @@ const MapEditor: React.FC = () => {
                 ))}
             </DraggableCanvas>
 
+            <Minimap
+                canvasWidth={3000}
+                canvasHeight={2000}
+                viewportWidth={viewportSize.width}
+                viewportHeight={viewportSize.height}
+                position={position}
+                elements={canvasItems.map((item) => ({ ...item, size: { width: 100, height: 100 } }))}
+                onPositionChange={setPosition}
+                backgroundColor={backgroundColor}
+            />
+
             {/* Elements Sidebar */}
             <ElementsSidebar
                 objectBaseUrl={objectBaseUrl}
@@ -291,6 +327,9 @@ const MapEditor: React.FC = () => {
                 onElementCreate={handleNewElementCreation}
                 onDragStart={handleDragStart}
             />
+
+            {isSaving && 
+            <IsSaving/>}
         </div>
     );
 };

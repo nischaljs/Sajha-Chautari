@@ -131,65 +131,56 @@ export const createMapController = async (
   }
 };
 
-export const addMapElementsControllers = async (
+export const addMapElementsController = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
+    // Validate input data
     const parsedData = addMapElementSchema.safeParse(req.body);
     if (!parsedData.success) {
       throw new AppError(HttpStatusCode.BadRequest, "Invalid data input");
     }
+    console.log(parsedData.data);
 
+    const { mapId, defaultElements } = parsedData.data;
+
+    // Check if the map exists
     const mapExists = await prisma.map.findUnique({
-      where: { id: parsedData.data.mapId },
+      where: { id: mapId },
     });
+
     if (!mapExists) {
       throw new AppError(
         HttpStatusCode.BadRequest,
-        `Map with ID ${parsedData.data.mapId} does not exist.`,
+        `Map with ID ${mapId} does not exist.`,
       );
     }
 
-    const mapElements = await Promise.all(
-      parsedData.data.defaultElements.map(async (elem) => {
-        const existingElement = await prisma.mapElement.findFirst({
-          where: {
-            mapId: parsedData.data.mapId,
-            x: elem.x,
-            y: elem.y,
-          },
-        });
+    // Clear existing elements for the map
+    await prisma.mapElement.deleteMany({
+      where: { mapId },
+    });
 
-        if (existingElement) {
-          return {
-            success: false,
-            message: `An element already exists at coordinates (${elem.x}, ${elem.y})`,
-            element: elem,
-          };
-        }
-
-        const newElement = await prisma.mapElement.create({
+    // Add new elements to the map
+    const createdElements = await prisma.$transaction(
+      defaultElements.map(elem =>
+        prisma.mapElement.create({
           data: {
-            mapId: parsedData.data.mapId,
+            mapId,
             elementId: elem.elementId,
             x: elem.x,
             y: elem.y,
           },
-        });
-
-        return {
-          success: true,
-          message: "Element created successfully",
-          element: newElement,
-        };
-      }),
+        }),
+      ),
     );
 
+    // Send success response
     res
       .status(HttpStatusCode.Ok)
-      .json(new SuccessResponse("Elements processed", mapElements));
+      .json(new SuccessResponse("Elements successfully updated", createdElements));
   } catch (error) {
     next(error);
   }

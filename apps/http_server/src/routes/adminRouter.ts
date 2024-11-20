@@ -4,7 +4,7 @@ import { AppError } from "../utils/AppError";
 import { HttpStatusCode } from "axios";
 import {
   addElements,
-  addMapElementsControllers,
+  addMapElementsController,
   createAvatar,
   createMapController,
   updateElement,
@@ -38,6 +38,6 @@ adminRouter.post("/avatars", createAvatar);
 
 adminRouter.post("/maps",upload.single("thumbnail"), createMapController);
 
-adminRouter.post("/map/element", addMapElementsControllers);
+adminRouter.post("/map/element", addMapElementsController);
 
 export default adminRouter;
