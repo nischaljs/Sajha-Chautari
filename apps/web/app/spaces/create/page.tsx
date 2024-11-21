@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import api from "@/utils/axiosInterceptor";
+import { mapBaseUrl } from "@/utils/Links";
 import { Globe, Layout, Loader2, Lock, MapPin, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -62,7 +63,7 @@ export default function CreateSpacePage() {
         name: formData.name,
         mapId: formData.mapId,
         capacity: formData.capacity,
-        isPublic: formData.isPublic
+        public: formData.isPublic
       });
       router.push(`/spaces/${data.data.id}`);
     } catch (err: any) {
@@ -194,7 +195,7 @@ export default function CreateSpacePage() {
                   <CardContent className="p-4">
                     <div className="relative">
                       <img
-                        src={map.thumbnail || "/api/placeholder/200/150"}
+                        src={mapBaseUrl+map.thumbnail || "/api/placeholder/200/150"}
                         alt={map.name}
                         className="w-full h-32 object-cover rounded-lg"
                       />

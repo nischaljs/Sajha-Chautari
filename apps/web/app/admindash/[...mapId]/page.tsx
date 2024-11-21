@@ -47,14 +47,15 @@ const MapEditor: React.FC = () => {
     const [gridSize, setGridSize] = useState(32);
     const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [dropNewElem, setDropNewElem] = useState(false);
 
-    
+
     // Elements States
     const [availableElements, setAvailableElements] = useState<Element[]>([]);
     const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([]);
 
     const { isSaving } = useAutoSave(mapId, canvasItems, 10000);
-    
+
     // File and Submission States
     const backgroundInputRef = useRef<HTMLInputElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -160,7 +161,7 @@ const MapEditor: React.FC = () => {
             if (response.data.success) {
                 const newMapId = response.data.data.map.id;
                 // Navigate to the new map editor
-                router.push(`/${newMapId}`);
+                router.push(`/admindash/${newMapId}`);
 
                 alert("Map created successfully!");
             }
@@ -189,6 +190,7 @@ const MapEditor: React.FC = () => {
 
     // Handle Drag Start for Elements
     const handleDragStart = (element: Element, e: React.DragEvent) => {
+        setDropNewElem(true);
         try {
             const elementJson = JSON.stringify({
                 id: element.id,
@@ -207,45 +209,49 @@ const MapEditor: React.FC = () => {
 
     const snapToGrid = (coordinate: number): number => {
         return Math.round(coordinate / gridSize) * gridSize;
-      };
+    };
 
     // Handle Drop on Canvas
     const handleCanvasDrop = (e: React.DragEvent) => {
         try {
-          // Snap the x and y coordinates to the grid
-          const snappedX = snapToGrid(e.clientX);
-          const snappedY = snapToGrid(e.clientY);
-      
-          // Try parsing the dropped data
-          const data = e.dataTransfer.getData('application/json');
-          
-          
-          const parsedData = JSON.parse(data);
-          console.log("after drop", parsedData)
-          // Check if necessary properties exist
+            // Snap the x and y coordinates to the grid
+            if (dropNewElem) {
+                const snappedX = snapToGrid(e.clientX);
+                const snappedY = snapToGrid(e.clientY);
 
-      
-          // Process the element with snapped position
-          const element = { ...parsedData,position:{ x: snappedX, y: snappedY}};
-          console.log('Dropped element:', element);
-          console.log("canvas elements",canvasItems);
-          setCanvasItems((prev)=> ([...prev,element]));
-        } catch (error:any) {
-          // Log error details and alert the user
-          console.error('Error processing drop:', error);
-          alert(`An error occurred: ${error.message}. Please try again.`);
+                // Try parsing the dropped data
+                const data = e.dataTransfer.getData('application/json');
+                const parsedData = JSON.parse(data);
+                console.log("after drop", parsedData);
+
+                // Check if the position is within the canvas bounds
+                if (snappedX >= 0 && snappedX <= canvasSize.width && snappedY >= 0 && snappedY <= canvasSize.height) {
+                    // Process the element with snapped position
+                    const element = { ...parsedData, position: { x: snappedX, y: snappedY } };
+                    console.log('Dropped element:', element);
+                    console.log("canvas elements", canvasItems);
+
+                    // Only add the element once
+                    setCanvasItems((prev) => [...prev, element]);
+                }
+            }
+
+        } catch (error: any) {
+            console.error('Error processing drop:', error);
+            alert(`An error occurred: ${error.message}. Please try again.`);
         }
-      };
+    };
 
-      
+
+
 
     // Remove last added canvas item
     const removeLastCanvasItem = () => {
         setCanvasItems(prev => prev.slice(0, -1));
     };
 
-    const handleItemDelete = (position:Position) => {
-        if(canvasItems.length==1){
+    const handleItemDelete = (position: Position) => {
+        if (canvasItems.length == 1) {
             removeLastCanvasItem();
         }
         console.log('delete triggered for this element at this position ', position);
@@ -256,7 +262,7 @@ const MapEditor: React.FC = () => {
 
     return (
         <div
-            className="h-screen w-screen bg-gray-100 overflow-hidden relative"
+            className="h-screen w-screen bg-gray-100 overflow-hidden relative select-none"
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleCanvasDrop}
         >
@@ -291,9 +297,12 @@ const MapEditor: React.FC = () => {
             >
                 {canvasItems.map((item, index) => (
                     <DraggableItem
-                        key={item.id+index}
+                        key={item.id + index}
+                        item={item}
+                        setCanvasItems={setCanvasItems}
                         id={item.canvasId}
                         initialPosition={item.position}
+                        initialSize={{ width: item.width, height: item.height }}
                         gridSize={gridSize}
                         onDelete={handleItemDelete}
                     >
@@ -328,8 +337,8 @@ const MapEditor: React.FC = () => {
                 onDragStart={handleDragStart}
             />
 
-            {isSaving && 
-            <IsSaving/>}
+            {isSaving &&
+                <IsSaving />}
         </div>
     );
 };

@@ -7,6 +7,8 @@ interface DraggableItemProps {
   initialSize?: { width: number; height: number };
   gridSize: number;
   children: React.ReactNode;
+  item: any,
+  setCanvasItems: (item: any) => void;
   onPositionChange?: (id: number, position: { x: number; y: number }) => void;
   onDelete?: (position: { x: number; y: number }) => void; // New prop for deletion
 }
@@ -15,6 +17,8 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
   id,
   initialPosition,
   initialSize,
+  item,
+  setCanvasItems,
   gridSize,
   children,
   onDelete
@@ -27,7 +31,6 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
 
   // Handle dragging
   const handleMouseDown = (e: React.MouseEvent) => {
-    console.log("postion" ,position);
     if (e.target === elementRef.current) {
       setIsDragging(true);
       setDragStart({
@@ -41,14 +44,27 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
     if (isDragging) {
       const newX = Math.round((e.clientX - dragStart.x) / gridSize) * gridSize;
       const newY = Math.round((e.clientY - dragStart.y) / gridSize) * gridSize;
-      
+
       setPosition({ x: newX, y: newY });
     }
   }, [isDragging, dragStart, gridSize, id]);
 
   const handleMouseUp = () => {
     setIsDragging(false);
+
+    // Update the item position instead of adding a new one
+    setCanvasItems((prev: any) => {
+      // Find the index of the dragged item and update its position
+      return prev.map((existingItem: any) =>
+        existingItem.id === id
+          ? { ...existingItem, position }  // Update the position of the dragged item
+          : existingItem
+      );
+    });
+
+    console.log("Updated the canvas items");
   };
+
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering drag when clicking delete
@@ -84,7 +100,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
       >
         <X size={16} />
       </button>
-      
+
       {children}
     </div>
   );

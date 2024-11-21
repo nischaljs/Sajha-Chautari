@@ -1,24 +1,19 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
-import { GameMap, Position, SpaceElement } from "@/types/Space";
+import { GameMap, Position, SpaceElement, SpaceElements } from "@/types/Space";
 import { User } from "@/types/User";
 
 interface CanvasProps {
     users: User[];
     position: Position;
-    elements: SpaceElement[];
+    elements: SpaceElements[];
     map: GameMap | null;
     backgroundImageRef: React.RefObject<HTMLImageElement | null>;
-    elementImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>>;
-    avatarImagesRef: React.RefObject<globalThis.Map<string, HTMLImageElement>>;
     currentUserId: string;
     onMove: (newPosition: Position) => void;
 }
 
 const AVATAR_SIZE = 40;
 const BASE_MOVE_SPEED = 5;
-const CAMERA_BUFFER = 200;
-const MOVEMENT_SMOOTHING = 0.15;
-const CAMERA_SMOOTHING = 0.08;
 
 interface MovementState {
     up: boolean;
@@ -33,41 +28,63 @@ const Canvas: React.FC<CanvasProps> = ({
     elements,
     map,
     backgroundImageRef,
-    elementImagesRef,
-    avatarImagesRef,
     currentUserId,
     onMove,
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const contextRef = useRef<CanvasRenderingContext2D | null>(null);
-    const animationFrameIdRef = useRef<number | null>(null);
-    const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
     const movementRef = useRef<MovementState>({ up: false, down: false, left: false, right: false });
-    const lastUpdateRef = useRef<number>(0);
-    const interpolatedPositionsRef = useRef<Map<string, Position>>(new Map());
+    const elementImagesRef = useRef<{[key: string]: HTMLImageElement}>({});
 
-    // Initialize canvas
+
+    // Preload element images
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            contextRef.current = canvas.getContext("2d");
-        }
-
-        // Initialize interpolated positions
-        users.forEach(user => {
-            if (user.position) {
-                interpolatedPositionsRef.current.set(user.id, { ...user.position });
+        elements.forEach((element) => {
+            if (element.imageUrl) {
+                const img = new Image();
+                img.src = element.imageUrl;
+                img.onload = () => {
+                    elementImagesRef.current[element.id] = img;
+                };
             }
         });
+    }, [elements]);
+
+
+    // Prevent default scroll behaviors
+    useEffect(() => {
+        const preventScroll = (e: KeyboardEvent) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
+                e.preventDefault();
+            }
+        };
+
+        document.addEventListener('keydown', preventScroll, { passive: false });
+        return () => {
+            document.removeEventListener('keydown', preventScroll);
+        };
     }, []);
 
-    // Smooth movement handler
+    // Initialize fullscreen canvas
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (canvas && map) {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.style.position = 'fixed';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.zIndex = '10';
+            contextRef.current = canvas.getContext("2d");
+            document.body.style.overflow = 'hidden';
+        }
+    }, [map]);
+
+    // Smooth movement handler with corrected direction
     const handleMovement = useCallback((deltaTime: number) => {
         if (!map) return;
 
-        const moveSpeed = BASE_MOVE_SPEED * (deltaTime / 16.67); // Normalize for 60fps
+        const moveSpeed = BASE_MOVE_SPEED * (deltaTime / 16.67);
         let dx = 0;
         let dy = 0;
 
@@ -83,89 +100,89 @@ const Canvas: React.FC<CanvasProps> = ({
             dy = (dy / magnitude) * moveSpeed;
         }
 
-        const newX = Math.max(0, Math.min(map.width, position.x + dx));
-        const newY = Math.max(0, Math.min(map.height, position.y + dy));
+        const newX = Math.max(0, Math.min(map.width - AVATAR_SIZE, position.x + dx));
+        const newY = Math.max(0, Math.min(map.height - AVATAR_SIZE, position.y + dy));
 
         if (newX !== position.x || newY !== position.y) {
             onMove({ x: newX, y: newY });
         }
     }, [position, map, onMove]);
 
-    // Update camera with buffer zones
-    const updateCamera = useCallback(() => {
+    // Draw background and all elements
+    const draw = useCallback(() => {
+        const context = contextRef.current;
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!context || !canvas || !map) return;
 
-        const currentUser = users.find(u => u.id === currentUserId);
-        if (!currentUser?.position) return;
+        // Clear canvas
+        context.clearRect(0, 0, canvas.width, canvas.height);
 
-        const viewportWidth = canvas.width;
-        const viewportHeight = canvas.height;
+        // Calculate view offset to center current user
+        const viewOffsetX = position.x - canvas.width / 2 + AVATAR_SIZE / 2;
+        const viewOffsetY = position.y - canvas.height / 2 + AVATAR_SIZE / 2;
 
-        // Calculate camera target position with buffer zones
-        let targetX = -(currentUser.position.x - viewportWidth / 2);
-        let targetY = -(currentUser.position.y - viewportHeight / 2);
-
-        // Apply buffer zones
-        if (Math.abs(targetX - cameraOffset.x) > CAMERA_BUFFER) {
-            targetX = cameraOffset.x + (targetX - cameraOffset.x) * CAMERA_SMOOTHING;
+        // Draw background
+        if (backgroundImageRef.current) {
+            context.drawImage(
+                backgroundImageRef.current, 
+                -viewOffsetX, 
+                -viewOffsetY, 
+                map.width, 
+                map.height
+            );
         }
-        if (Math.abs(targetY - cameraOffset.y) > CAMERA_BUFFER) {
-            targetY = cameraOffset.y + (targetY - cameraOffset.y) * CAMERA_SMOOTHING;
-        }
 
-        setCameraOffset(prev => ({
-            x: prev.x + (targetX - prev.x) * CAMERA_SMOOTHING,
-            y: prev.y + (targetY - prev.y) * CAMERA_SMOOTHING
-        }));
-    }, [users, currentUserId]);
-
-    // Interpolate user positions
-    const updateUserPositions = useCallback(() => {
-        users.forEach(user => {
-            if (!user.position) return;
-
-            const currentPos = interpolatedPositionsRef.current.get(user.id);
-            if (!currentPos) {
-                interpolatedPositionsRef.current.set(user.id, { ...user.position });
-                return;
-            }
-
-            // Smooth interpolation
-            const newX = currentPos.x + (user.position.x - currentPos.x) * MOVEMENT_SMOOTHING;
-            const newY = currentPos.y + (user.position.y - currentPos.y) * MOVEMENT_SMOOTHING;
-
-            interpolatedPositionsRef.current.set(user.id, { x: newX, y: newY });
+        // Draw map elements
+        elements.forEach((element) => {
+            context.beginPath();
+            context.rect(
+                element.x - viewOffsetX, 
+                element.y - viewOffsetY, 
+                element?.width, 
+                element?.height
+            );
+            context.fillStyle = 'gray';
+            context.fill();
         });
-    }, [users]);
 
-    // Animation loop with delta time
+        // Draw avatars
+        users.forEach((user) => {
+            const { x, y } = user.position || { x: 0, y: 0 };
+
+            // Calculate screen position
+            const screenX = x - viewOffsetX;
+            const screenY = y - viewOffsetY;
+
+            context.beginPath();
+            context.arc(screenX, screenY, AVATAR_SIZE / 2, 0, Math.PI * 2);
+            context.fillStyle = user.id === currentUserId ? "#4A90E2" : "#E24A4A";
+            context.fill();
+
+            context.fillStyle = "#000";
+            context.textAlign = "center";
+            context.font = "12px Arial";
+            context.fillText(user.nickname || "User", screenX, screenY + AVATAR_SIZE);
+        });
+    }, [users, elements, backgroundImageRef.current, map, currentUserId, position]);
+
+    // Animation loop
     useEffect(() => {
+        let animationFrameId: number;
         let lastFrameTime = performance.now();
 
         const animate = (currentTime: number) => {
             const deltaTime = currentTime - lastFrameTime;
             lastFrameTime = currentTime;
 
-            if (currentTime - lastUpdateRef.current > 16) { // Cap at ~60fps
-                handleMovement(deltaTime);
-                updateCamera();
-                updateUserPositions();
-                drawBackground();
-                drawAvatars();
-                lastUpdateRef.current = currentTime;
-            }
+            handleMovement(deltaTime);
+            draw();
 
-            animationFrameIdRef.current = requestAnimationFrame(animate);
+            animationFrameId = requestAnimationFrame(animate);
         };
 
         animate(performance.now());
-        return () => {
-            if (animationFrameIdRef.current) {
-                cancelAnimationFrame(animationFrameIdRef.current);
-            }
-        };
-    }, [handleMovement, updateCamera, updateUserPositions]);
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [handleMovement, draw]);
 
     // Input handling
     useEffect(() => {
@@ -195,81 +212,12 @@ const Canvas: React.FC<CanvasProps> = ({
             window.removeEventListener("keyup", handleKeyUp);
         };
     }, []);
-    const drawBackground = useCallback(() => {
-        const context = contextRef.current;
-        const canvas = canvasRef.current;
-        if (!canvas || !context || !map) return;
-
-        context.save();
-        context.translate(cameraOffset.x, cameraOffset.y);
-
-        // Clear entire canvas
-        context.clearRect(-cameraOffset.x, -cameraOffset.y, canvas.width, canvas.height);
-
-        // Draw grid
-        const gridSize = 50;
-        context.strokeStyle = "#ddd";
-        context.beginPath();
-        
-        const startX = Math.floor(-cameraOffset.x / gridSize) * gridSize;
-        const startY = Math.floor(-cameraOffset.y / gridSize) * gridSize;
-        const endX = startX + canvas.width + gridSize;
-        const endY = startY + canvas.height + gridSize;
-
-        for (let x = startX; x < endX; x += gridSize) {
-            context.moveTo(x, startY);
-            context.lineTo(x, endY);
-        }
-        for (let y = startY; y < endY; y += gridSize) {
-            context.moveTo(startX, y);
-            context.lineTo(endX, y);
-        }
-        context.stroke();
-
-        // Draw map boundaries
-        context.strokeStyle = "#FF0000";
-        context.strokeRect(0, 0, map.width, map.height);
-
-        context.restore();
-    }, [cameraOffset, map]);
-
-    // Drawing functions remain similar but use interpolated positions
-    const drawAvatars = useCallback(() => {
-        const context = contextRef.current;
-        if (!context) return;
-
-        context.save();
-        context.translate(cameraOffset.x, cameraOffset.y);
-
-        users.forEach((user) => {
-            const interpolatedPos = interpolatedPositionsRef.current.get(user.id);
-            if (!interpolatedPos) return;
-
-            const { x, y } = interpolatedPos;
-
-            context.beginPath();
-            context.arc(x, y, AVATAR_SIZE / 2, 0, Math.PI * 2);
-            context.fillStyle = user.id === currentUserId ? "#4A90E2" : "#E24A4A";
-            context.fill();
-
-            context.fillStyle = "#000";
-            context.textAlign = "center";
-            context.font = "12px Arial";
-            context.fillText(user.nickname || "User", x, y + AVATAR_SIZE);
-        });
-
-        context.restore();
-    }, [users, currentUserId, cameraOffset]);
-
-    // ... rest of the drawing code remains the same ...
 
     return (
-        <div className="relative w-full h-full overflow-hidden">
-            <canvas
-                ref={canvasRef}
-                className="w-full h-full"
-            />
-        </div>
+        <canvas
+            ref={canvasRef}
+            style={{ border: 'none', margin: 0, padding: 0 }}
+        />
     );
 };
 

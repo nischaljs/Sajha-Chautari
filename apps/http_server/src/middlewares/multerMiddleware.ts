@@ -12,7 +12,7 @@ const ensureDirectoryExists = (folder: string) => {
 // Dynamic storage for different file types
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const folder = file.fieldname === 'thumbnail' ? 'public/uploads/maps' : 'public/uploads/objects';
+    const folder = file.fieldname === 'thumbnail' ? 'src/public/uploads/maps' : file.fieldname == 'avatars' ? 'src/public/uplods/avatars' : 'src/public/uploads/objects';
     ensureDirectoryExists(folder);
     cb(null, folder);
   },

@@ -75,6 +75,7 @@ export default function SpacesPage() {
     if (activeTab === "joined") {
       return spaces.filter(space => space.creator.id !== user?.id);
     }
+    console.log("the spaces you made")
     return spaces.filter(space => space.creator.id === user?.id);
   };
 

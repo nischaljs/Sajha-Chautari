@@ -11,7 +11,9 @@ export const createSpaceRouter = async (
   next: NextFunction,
 ) => {
   try {
+    console.log(req.body);
     const parsedData = createSpaceSchema.safeParse(req.body);
+    console.log(parsedData.error);
 
     if (!parsedData.success) {
       throw new AppError(HttpStatusCode.BadRequest, "Invalid request data");

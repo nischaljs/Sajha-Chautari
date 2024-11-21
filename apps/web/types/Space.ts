@@ -53,6 +53,11 @@ export interface SpaceElement {
   element: Element;
 }
 
+export interface SpaceElements extends Element{
+  x: number;
+  y: number;
+}
+
 export interface GameMap {
   id: string;
   width: number;
@@ -64,7 +69,7 @@ export interface GameMap {
   mapElements: MapElement[];
 }
 
-export interface MapElement {
+export interface MapElement extends Element {
   id: string;
   x: number;
   y: number;
@@ -75,7 +80,7 @@ export interface SpaceDetailsResponse {
   id: string;
   name: string;
   capacity: number;
-  elements: SpaceElement[];
+  elements: SpaceElements[];
   map: GameMap;
   creator: User;
   users: User[];
@@ -88,7 +93,7 @@ export interface GameState {
   connected: boolean;
   error: string;
   map: GameMap | null;
-  elements: SpaceElement[];
+  elements: SpaceElements[];
   spaceDetails: SpaceDetailsResponse | null;
   currentUserId: string;
 }

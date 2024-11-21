@@ -6,7 +6,7 @@ interface MinimapProps {
   viewportWidth: number;
   viewportHeight: number;
   position: { x: number; y: number };
-  elements: Array<{
+  elements?: Array<{
     id: string;
     position: { x: number; y: number };
     size: { width: number; height: number };
@@ -21,7 +21,7 @@ export const Minimap: React.FC<MinimapProps> = ({
   viewportWidth,
   viewportHeight,
   position,
-  elements,
+  elements = null,
   onPositionChange,
   backgroundColor
 }) => {
@@ -37,6 +37,14 @@ export const Minimap: React.FC<MinimapProps> = ({
     height: Math.round(viewportHeight * scale),
     x: Math.round(-position.x * scale),
     y: Math.round(-position.y * scale),
+  };
+
+  // Ensure the viewport rectangle stays within the minimap bounds
+  const clampedViewportRect = {
+    x: Math.max(0, Math.min(viewportRect.x, minimapWidth - viewportRect.width)),
+    y: Math.max(0, Math.min(viewportRect.y, minimapHeight - viewportRect.height)),
+    width: viewportRect.width,
+    height: viewportRect.height
   };
 
   const backgroundStyle = backgroundColor!.startsWith('url(') 
@@ -74,11 +82,11 @@ export const Minimap: React.FC<MinimapProps> = ({
 
     // Calculate new position ensuring viewport stays within canvas bounds
     const newX = Math.max(
-      Math.min(0, -((x - viewportRect.width / 2) / scale)),
+      Math.min(0, -((x - clampedViewportRect.width / 2) / scale)),
       -(canvasWidth - viewportWidth)
     );
     const newY = Math.max(
-      Math.min(0, -((y - viewportRect.height / 2) / scale)),
+      Math.min(0, -((y - clampedViewportRect.height / 2) / scale)),
       -(canvasHeight - viewportHeight)
     );
 
@@ -124,10 +132,10 @@ export const Minimap: React.FC<MinimapProps> = ({
         onMouseUp={handleMouseUp}
       >
         {/* Render elements */}
-        {elements.map((element,index) => (
+        {elements && elements.map((element, index) => (
           <div
-            key={element.id+index}
-            className="absolute bg-blue-500 opacity-50"
+            key={element.id + index}
+            className="absolute bg-red-500 opacity-50"
             style={{
               width: Math.max(2, Math.round(element.size.width * scale)),
               height: Math.max(2, Math.round(element.size.height * scale)),
@@ -142,9 +150,9 @@ export const Minimap: React.FC<MinimapProps> = ({
         <div
           className="absolute border-2 border-red-500 pointer-events-none"
           style={{
-            width: viewportRect.width,
-            height: viewportRect.height,
-            transform: `translate(${viewportRect.x}px, ${viewportRect.y}px)`,
+            width: clampedViewportRect.width,
+            height: clampedViewportRect.height,
+            transform: `translate(${clampedViewportRect.x}px, ${clampedViewportRect.y}px)`,
           }}
         />
       </div>

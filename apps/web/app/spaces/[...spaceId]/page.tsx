@@ -1,20 +1,21 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
-import { debugLogger } from "@/utils/debugLogger";
 import Canvas from "@/components/Canvas";
+import { Minimap } from "@/components/MiniMap";
 import { Card } from "@/components/ui/card";
 import UserList from "@/components/UserList";
+import { useUserContextState } from "@/context/UserContext";
 import {
   GameState,
   Position,
-  SpaceDetailsResponse,
-  SocketResponse
+  SocketResponse,
+  SpaceDetailsResponse
 } from "@/types/Space";
-import api from "@/utils/axiosInterceptor";
-import { useParams } from "next/navigation";
-import { io, Socket } from "socket.io-client";
-import { useUserContextState } from "@/context/UserContext";
 import { User } from "@/types/User";
+import api from "@/utils/axiosInterceptor";
+import { mapBaseUrl } from "@/utils/Links";
+import { useParams } from "next/navigation";
+import React, { useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
 
 const initialGameState: GameState = {
   users: [],
@@ -37,8 +38,6 @@ const VirtualSpace: React.FC = () => {
   const lastMovementRef = useRef<{ position: Position; timestamp: number } | null>(null);
 
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
-  const elementImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  const avatarImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
 
   // Fetch initial space data
@@ -47,7 +46,12 @@ const VirtualSpace: React.FC = () => {
       try {
         const response = await api.get<{ data: SpaceDetailsResponse }>(`/arenas/${spaceId}`);
         const spaceData = response.data.data;
-
+        console.log("space datas", spaceData);
+        preloadBackgroundImage(spaceData);
+        const combinedElements = [
+          ...(spaceData.map.mapElements || []),
+          ...(spaceData.elements || [])
+        ];
         const transformedUsers = spaceData.users.map((user) => ({
           id: user.id,
           email: user.email || "unknown@example.com", // Provide a default value if email is missing
@@ -67,7 +71,7 @@ const VirtualSpace: React.FC = () => {
           ...prev,
           spaceDetails: spaceData,
           map: spaceData.map,
-          elements: spaceData.elements || [],
+          elements: combinedElements || [],
           position: { x: spaceData.map.dropX, y: spaceData.map.dropY },
           users: transformedUsers, // Use transformed users
           connected: true,
@@ -86,6 +90,20 @@ const VirtualSpace: React.FC = () => {
 
     fetchSpace();
   }, [spaceId]);
+
+  function preloadBackgroundImage(spaceData: SpaceDetailsResponse) {
+    if (!spaceData.map.thumbnail) return;
+    const image = new Image();
+    image.src = `${mapBaseUrl}${spaceData.map.thumbnail}`;
+    image.alt = `${spaceData.map.name}`;
+    image.width = spaceData.map.width;
+    image.height = spaceData.map.height;
+    image.onload = () => {
+      backgroundImageRef.current = image;
+      console.log("background images loaded ", backgroundImageRef);
+    }
+  }
+
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -197,11 +215,11 @@ const VirtualSpace: React.FC = () => {
         }
       },
 
-      leave_space:(data:SocketResponse<{id:string}>)=>{
-        if(data.success){
-          setGameState(prev=>({
+      leave_space: (data: SocketResponse<{ id: string }>) => {
+        if (data.success) {
+          setGameState(prev => ({
             ...prev,
-            users:prev.users.filter((user)=>user.id!=data.data!.id),
+            users: prev.users.filter((user) => user.id != data.data!.id),
           }))
         }
       },
@@ -289,18 +307,28 @@ const VirtualSpace: React.FC = () => {
   }
 
   return (
-    <Card className="virtual-space">
+    <Card className="virtual-space relative">
       <Canvas
         users={gameState.users}
         position={gameState.position}
         elements={gameState.elements}
         map={gameState.map}
         backgroundImageRef={backgroundImageRef}
-        elementImagesRef={elementImagesRef}
-        avatarImagesRef={avatarImagesRef}
         currentUserId={gameState.currentUserId}
         onMove={handleMovement}
       />
+      {gameState.map && (
+        <Minimap
+          canvasWidth={gameState.map.width}
+          canvasHeight={gameState.map.height}
+          viewportWidth={window.innerWidth}
+          viewportHeight={window.innerHeight}
+          position={gameState.position}
+          backgroundColor="#fff"
+          // elements={gameState.elements}
+          onPositionChange={handleMovement}
+        />
+      )}
       {user && (
         <UserList
           users={gameState.users}
@@ -309,6 +337,7 @@ const VirtualSpace: React.FC = () => {
       )}
     </Card>
   );
-};
+
+}
 
 export default VirtualSpace;

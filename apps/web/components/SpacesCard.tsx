@@ -5,6 +5,7 @@ import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.share
 import { Button } from "./ui/button";
 import { Card, CardFooter, CardHeader } from "./ui/card";
 import Image from "next/image";
+import { mapBaseUrl } from "@/utils/Links";
 
 interface SpacesCardProps {
     filteredSpaces: Space[],
@@ -21,7 +22,7 @@ export default function SpacesCard({ filteredSpaces, user, router }: SpacesCardP
             <Card key={space.id} className="overflow-hidden hover:shadow-lg transition-all">
                 <div className="aspect-video relative overflow-hidden">
                     <Image
-                        src={space.map.thumbnail || "/api/placeholder/400/320"}
+                        src={mapBaseUrl+space.map.thumbnail || "/api/placeholder/400/320"}
                         alt={space.name}
                         className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-300"
                         width={400}
