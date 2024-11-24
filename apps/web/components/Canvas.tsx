@@ -1,224 +1,163 @@
-import React, { useEffect, useRef, useCallback, useState } from "react";
-import { GameMap, Position, SpaceElement, SpaceElements } from "@/types/Space";
-import { User } from "@/types/User";
+import React, { useCallback, useEffect, useRef } from "react";
+import { Position, SpaceElements, User } from "@/types/Space";
 
 interface CanvasProps {
-    users: User[];
-    position: Position;
-    elements: SpaceElements[];
-    map: GameMap | null;
-    backgroundImageRef: React.RefObject<HTMLImageElement | null>;
-    currentUserId: string;
-    onMove: (newPosition: Position) => void;
+  users: User[];
+  position: Position;
+  elements: SpaceElements[];
+  map: { width: number; height: number } | null;
+  backgroundImageRef: React.RefObject<HTMLImageElement | null>;
+  currentUserId: string;
+  onMove: (newPosition: Position) => void;
 }
 
-const AVATAR_SIZE = 40;
-const BASE_MOVE_SPEED = 5;
-
-interface MovementState {
-    up: boolean;
-    down: boolean;
-    left: boolean;
-    right: boolean;
-}
+const VIEWPORT_WIDTH = window.innerWidth;
+const VIEWPORT_HEIGHT = window.innerHeight;
+const CHARACTER_SIZE = 40;
+const MOVEMENT_SPEED = 5;
 
 const Canvas: React.FC<CanvasProps> = ({
-    users,
-    position,
-    elements,
-    map,
-    backgroundImageRef,
-    currentUserId,
-    onMove,
+  users,
+  position,
+  elements,
+  map,
+  backgroundImageRef,
+  currentUserId,
+  onMove,
 }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const contextRef = useRef<CanvasRenderingContext2D | null>(null);
-    const movementRef = useRef<MovementState>({ up: false, down: false, left: false, right: false });
-    const elementImagesRef = useRef<{[key: string]: HTMLImageElement}>({});
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animationFrameRef = useRef<number>();
+  const keysPressed = useRef<Set<string>>(new Set());
 
+  const calculateCameraOffset = useCallback((playerPos: Position) => {
+    if (!map) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, map.width - VIEWPORT_WIDTH)),
+      y: Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, map.height - VIEWPORT_HEIGHT)),
+    };
+  }, [map]);
 
-    // Preload element images
-    useEffect(() => {
-        elements.forEach((element) => {
-            if (element.imageUrl) {
-                const img = new Image();
-                img.src = element.imageUrl;
-                img.onload = () => {
-                    elementImagesRef.current[element.id] = img;
-                };
-            }
-        });
-    }, [elements]);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !map) return;
 
+    canvas.width = VIEWPORT_WIDTH;
+    canvas.height = VIEWPORT_HEIGHT;
 
-    // Prevent default scroll behaviors
-    useEffect(() => {
-        const preventScroll = (e: KeyboardEvent) => {
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
-                e.preventDefault();
-            }
-        };
+    const handleKeyDown = (e: KeyboardEvent) => keysPressed.current.add(e.key.toLowerCase());
+    const handleKeyUp = (e: KeyboardEvent) => keysPressed.current.delete(e.key.toLowerCase());
 
-        document.addEventListener('keydown', preventScroll, { passive: false });
-        return () => {
-            document.removeEventListener('keydown', preventScroll);
-        };
-    }, []);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
 
-    // Initialize fullscreen canvas
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (canvas && map) {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            canvas.style.position = 'fixed';
-            canvas.style.top = '0';
-            canvas.style.left = '0';
-            canvas.style.zIndex = '10';
-            contextRef.current = canvas.getContext("2d");
-            document.body.style.overflow = 'hidden';
-        }
-    }, [map]);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [map]);
 
-    // Smooth movement handler with corrected direction
-    const handleMovement = useCallback((deltaTime: number) => {
-        if (!map) return;
+  const render = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx || !map || !canvas) return;
 
-        const moveSpeed = BASE_MOVE_SPEED * (deltaTime / 16.67);
-        let dx = 0;
-        let dy = 0;
+    const currentUser = users.find(u => u.id === currentUserId);
+    if (!currentUser?.position) return;
 
-        if (movementRef.current.left) dx -= moveSpeed;
-        if (movementRef.current.right) dx += moveSpeed;
-        if (movementRef.current.up) dy -= moveSpeed;
-        if (movementRef.current.down) dy += moveSpeed;
+    const cameraOffset = calculateCameraOffset(currentUser.position);
 
-        // Normalize diagonal movement
-        if (dx !== 0 && dy !== 0) {
-            const magnitude = Math.sqrt(dx * dx + dy * dy);
-            dx = (dx / magnitude) * moveSpeed;
-            dy = (dy / magnitude) * moveSpeed;
-        }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const newX = Math.max(0, Math.min(map.width - AVATAR_SIZE, position.x + dx));
-        const newY = Math.max(0, Math.min(map.height - AVATAR_SIZE, position.y + dy));
+    ctx.save();
+    ctx.translate(-cameraOffset.x, -cameraOffset.y);
 
-        if (newX !== position.x || newY !== position.y) {
-            onMove({ x: newX, y: newY });
-        }
-    }, [position, map, onMove]);
+    if (backgroundImageRef.current) {
+      ctx.drawImage(backgroundImageRef.current, 0, 0, map.width, map.height);
+    }
 
-    // Draw background and all elements
-    const draw = useCallback(() => {
-        const context = contextRef.current;
-        const canvas = canvasRef.current;
-        if (!context || !canvas || !map) return;
+    elements.forEach((element) => {
+      ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
+      ctx.fillRect(element.x, element.y, element.width, element.height);
+    });
 
-        // Clear canvas
-        context.clearRect(0, 0, canvas.width, canvas.height);
+    users.forEach((user) => {
+      ctx.save();
+      ctx.translate(user.position!.x, user.position!.y);
 
-        // Calculate view offset to center current user
-        const viewOffsetX = position.x - canvas.width / 2 + AVATAR_SIZE / 2;
-        const viewOffsetY = position.y - canvas.height / 2 + AVATAR_SIZE / 2;
+      ctx.beginPath();
+      ctx.fillStyle = user.id === currentUserId ? "#4CAF50" : "#2196F3";
+      ctx.arc(0, 0, CHARACTER_SIZE / 2, 0, Math.PI * 2);
+      ctx.fill();
 
-        // Draw background
-        if (backgroundImageRef.current) {
-            context.drawImage(
-                backgroundImageRef.current, 
-                -viewOffsetX, 
-                -viewOffsetY, 
-                map.width, 
-                map.height
-            );
-        }
+      ctx.fillStyle = "white";
+      ctx.font = "14px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(user.nickname, 0, -CHARACTER_SIZE / 2 - 5);
 
-        // Draw map elements
-        elements.forEach((element) => {
-            context.beginPath();
-            context.rect(
-                element.x - viewOffsetX, 
-                element.y - viewOffsetY, 
-                element?.width, 
-                element?.height
-            );
-            context.fillStyle = 'gray';
-            context.fill();
-        });
+      if (user.avatar?.imageUrl) {
+        const avatar = new Image();
+        avatar.src = user.avatar.imageUrl;
+        ctx.drawImage(
+          avatar,
+          -CHARACTER_SIZE / 2,
+          -CHARACTER_SIZE / 2,
+          CHARACTER_SIZE,
+          CHARACTER_SIZE
+        );
+      }
 
-        // Draw avatars
-        users.forEach((user) => {
-            const { x, y } = user.position || { x: 0, y: 0 };
+      ctx.restore();
+    });
 
-            // Calculate screen position
-            const screenX = x - viewOffsetX;
-            const screenY = y - viewOffsetY;
+    ctx.restore();
 
-            context.beginPath();
-            context.arc(screenX, screenY, AVATAR_SIZE / 2, 0, Math.PI * 2);
-            context.fillStyle = user.id === currentUserId ? "#4A90E2" : "#E24A4A";
-            context.fill();
+    let moveX = 0;
+    let moveY = 0;
 
-            context.fillStyle = "#000";
-            context.textAlign = "center";
-            context.font = "12px Arial";
-            context.fillText(user.nickname || "User", screenX, screenY + AVATAR_SIZE);
-        });
-    }, [users, elements, backgroundImageRef.current, map, currentUserId, position]);
+    if (keysPressed.current.has("w") || keysPressed.current.has("arrowup")) moveY -= MOVEMENT_SPEED;
+    if (keysPressed.current.has("s") || keysPressed.current.has("arrowdown")) moveY += MOVEMENT_SPEED;
+    if (keysPressed.current.has("a") || keysPressed.current.has("arrowleft")) moveX -= MOVEMENT_SPEED;
+    if (keysPressed.current.has("d") || keysPressed.current.has("arrowright")) moveX += MOVEMENT_SPEED;
 
-    // Animation loop
-    useEffect(() => {
-        let animationFrameId: number;
-        let lastFrameTime = performance.now();
+    if (moveX !== 0 || moveY !== 0) {
+      const newPos = {
+        x: Math.max(CHARACTER_SIZE / 2, Math.min(currentUser.position.x + moveX, map.width - CHARACTER_SIZE / 2)),
+        y: Math.max(CHARACTER_SIZE / 2, Math.min(currentUser.position.y + moveY, map.height - CHARACTER_SIZE / 2)),
+      };
+      onMove(newPos);
+    }
 
-        const animate = (currentTime: number) => {
-            const deltaTime = currentTime - lastFrameTime;
-            lastFrameTime = currentTime;
+    animationFrameRef.current = requestAnimationFrame(render);
+  }, [users, elements, map, currentUserId, onMove, calculateCameraOffset, backgroundImageRef]);
 
-            handleMovement(deltaTime);
-            draw();
+  useEffect(() => {
+    animationFrameRef.current = requestAnimationFrame(render);
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [render]);
 
-            animationFrameId = requestAnimationFrame(animate);
-        };
-
-        animate(performance.now());
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [handleMovement, draw]);
-
-    // Input handling
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.repeat) return;
-            switch (e.key) {
-                case "ArrowLeft": case "a": movementRef.current.left = true; break;
-                case "ArrowRight": case "d": movementRef.current.right = true; break;
-                case "ArrowUp": case "w": movementRef.current.up = true; break;
-                case "ArrowDown": case "s": movementRef.current.down = true; break;
-            }
-        };
-
-        const handleKeyUp = (e: KeyboardEvent) => {
-            switch (e.key) {
-                case "ArrowLeft": case "a": movementRef.current.left = false; break;
-                case "ArrowRight": case "d": movementRef.current.right = false; break;
-                case "ArrowUp": case "w": movementRef.current.up = false; break;
-                case "ArrowDown": case "s": movementRef.current.down = false; break;
-            }
-        };
-
-        window.addEventListener("keydown", handleKeyDown);
-        window.addEventListener("keyup", handleKeyUp);
-        return () => {
-            window.removeEventListener("keydown", handleKeyDown);
-            window.removeEventListener("keyup", handleKeyUp);
-        };
-    }, []);
-
-    return (
-        <canvas
-            ref={canvasRef}
-            style={{ border: 'none', margin: 0, padding: 0 }}
-        />
-    );
+  return (
+    <div className="relative w-full h-full overflow-hidden">
+      <canvas
+        ref={canvasRef}
+        className="bg-gray-900"
+        style={{
+          width: VIEWPORT_WIDTH,
+          height: VIEWPORT_HEIGHT,
+        }}
+      />
+      <div className="absolute bottom-4 left-4 text-white bg-black/50 rounded p-2">
+        <p>Use WASD or arrow keys to move</p>
+      </div>
+    </div>
+  );
 };
 
 export default Canvas;
+

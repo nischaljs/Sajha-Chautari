@@ -1,21 +1,21 @@
 "use client";
+import React, { useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
+import { useParams } from "next/navigation";
 import Canvas from "@/components/Canvas";
-import { Minimap } from "@/components/MiniMap";
 import { Card } from "@/components/ui/card";
 import UserList from "@/components/UserList";
 import { useUserContextState } from "@/context/UserContext";
+import api from "@/utils/axiosInterceptor";
+import { mapBaseUrl } from "@/utils/Links";
 import {
   GameState,
   Position,
   SocketResponse,
-  SpaceDetailsResponse
+  SpaceDetailsResponse,
 } from "@/types/Space";
 import { User } from "@/types/User";
-import api from "@/utils/axiosInterceptor";
-import { mapBaseUrl } from "@/utils/Links";
-import { useParams } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { Minimap } from "@/components/MiniMap";
 
 const initialGameState: GameState = {
   users: [],
@@ -35,79 +35,55 @@ const VirtualSpace: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
-  const lastMovementRef = useRef<{ position: Position; timestamp: number } | null>(null);
-
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
 
+  // Preload background image
+  const preloadBackgroundImage = (spaceData: SpaceDetailsResponse) => {
+    if (!spaceData.map.thumbnail) return;
+    const image = new Image();
+    image.src = `${mapBaseUrl}${spaceData.map.thumbnail}`;
+    image.alt = spaceData.map.name;
+    image.onload = () => {
+      backgroundImageRef.current = image;
+      console.log("Background image loaded:", image.src);
+    };
+  };
 
-  // Fetch initial space data
+  // Fetch space details
   useEffect(() => {
     const fetchSpace = async () => {
+      if (!spaceId) return;
       try {
         const response = await api.get<{ data: SpaceDetailsResponse }>(`/arenas/${spaceId}`);
         const spaceData = response.data.data;
-        console.log("space datas", spaceData);
         preloadBackgroundImage(spaceData);
+
         const combinedElements = [
           ...(spaceData.map.mapElements || []),
-          ...(spaceData.elements || [])
+          ...(spaceData.elements || []),
         ];
-        const transformedUsers = spaceData.users.map((user) => ({
-          id: user.id,
-          email: user.email || "unknown@example.com", // Provide a default value if email is missing
-          nickname: user.nickname,
-          avatarId: user.avatarId || undefined, // Convert `null` to `undefined`
-          position: user.position || { x: spaceData.map.dropX, y: spaceData.map.dropY }, // Default position if missing
-          avatar: user.avatar
-            ? {
-              id: user.avatar.id || "unknown", // Handle missing `id`
-              imageUrl: user.avatar.imageUrl || undefined, // Convert `null` to `undefined`
-              name: user.avatar.name || "Unnamed Avatar", // Provide a default name
-            }
-            : undefined, // Handle missing `avatar`
-        }));
 
         setGameState((prev) => ({
           ...prev,
           spaceDetails: spaceData,
           map: spaceData.map,
-          elements: combinedElements || [],
+          elements: combinedElements,
           position: { x: spaceData.map.dropX, y: spaceData.map.dropY },
-          users: transformedUsers, // Use transformed users
           connected: true,
           error: "",
-          currentUserId: prev.currentUserId, // Preserve the current user ID
         }));
       } catch (error) {
         console.error("Failed to fetch space details:", error);
-        setGameState((prev) => ({
-          ...prev,
-          error: "Failed to load space data.",
-        }));
+        setGameState((prev) => ({ ...prev, error: "Failed to load space data." }));
       }
     };
-
 
     fetchSpace();
   }, [spaceId]);
 
-  function preloadBackgroundImage(spaceData: SpaceDetailsResponse) {
-    if (!spaceData.map.thumbnail) return;
-    const image = new Image();
-    image.src = `${mapBaseUrl}${spaceData.map.thumbnail}`;
-    image.alt = `${spaceData.map.name}`;
-    image.width = spaceData.map.width;
-    image.height = spaceData.map.height;
-    image.onload = () => {
-      backgroundImageRef.current = image;
-      console.log("background images loaded ", backgroundImageRef);
-    }
-  }
-
-
-  // Initialize WebSocket connection
+  // WebSocket connection and event handling
   useEffect(() => {
-    if (isLoading || !spaceId || !user) return;
+    if (socket || isLoading || !spaceId || !user) return;
 
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
     if (!socketUrl || !localStorage.getItem("token")) return;
@@ -118,82 +94,38 @@ const VirtualSpace: React.FC = () => {
       auth: {
         spaceId,
         token: localStorage.getItem("token"),
-        user
+        user,
       },
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
     });
 
     const socketEvents = {
       connect: () => {
-        setGameState(prev => ({ ...prev, connected: true }));
+        console.log("WebSocket connected");
+        setGameState((prev) => ({ ...prev, connected: true }));
         setIsConnecting(false);
       },
-
       initialize_space: (data: SocketResponse<{ users: User[]; currentUserId: string }>) => {
         if (data.success) {
-          setGameState(prev => ({
+          setGameState((prev) => ({
             ...prev,
-            users: data.data!.users.map(u => ({
-              ...u,
-              position: u.position || { x: prev.map?.dropX || 0, y: prev.map?.dropY || 0 }
-            })),
+            users: data.data!.users,
             currentUserId: data.data!.currentUserId,
           }));
         }
       },
-
-      movementResult: (data: SocketResponse<{ newCoordinates: Position; users: User[]; timestamp: number }>) => {
+      movementResult: (data: SocketResponse<{ newCoordinates: Position; users: User[] }>) => {
         if (data.success) {
-          // Only update if this is the most recent move or server override
-          const shouldUpdate = !lastMovementRef.current ||
-            data.data!.timestamp >= lastMovementRef.current.timestamp;
-
-          if (shouldUpdate) {
-            setGameState(prev => {
-              const updatedUsers = data.data!.users.map(u => {
-                if (u.id === prev.currentUserId) {
-                  return {
-                    ...u,
-                    position: data.data!.newCoordinates,
-                    lastMoveTimestamp: data.data!.timestamp
-                  };
-                }
-                return u;
-              });
-
-              return {
-                ...prev,
-                position: data.data!.newCoordinates,
-                users: updatedUsers
-              };
-            });
-          }
-        } else {
-          // Revert to last known good position on failure
-          if (lastMovementRef.current) {
-            setGameState(prev => ({
-              ...prev,
-              position: lastMovementRef.current!.position,
-              users: prev.users.map(u => {
-                if (u.id === prev.currentUserId) {
-                  return {
-                    ...u,
-                    position: lastMovementRef.current!.position
-                  };
-                }
-                return u;
-              })
-            }));
-          }
+          setGameState((prev) => ({
+            ...prev,
+            position: data.data!.newCoordinates,
+            users: data.data!.users,
+          }));
         }
       },
-
-      others_move: (data: SocketResponse<{ newCoordinates: Position; timestamp: number; movedUserId: string; }>) => {
-        console.log('other moved')
+      others_move: (data: SocketResponse<{ newCoordinates: Position; movedUserId: string }>) => {
         if (data.success) {
-          setGameState(prev => ({
+          setGameState((prev) => ({
             ...prev,
             users: prev.users.map(user =>
               user.id === data.data!.movedUserId
@@ -203,31 +135,11 @@ const VirtualSpace: React.FC = () => {
           }));
         }
       },
-
-      join_space: (data: SocketResponse<{ user: User }>) => {
-        console.log('someone joined the space', user)
-        if (data.success) {
-          setGameState(prev => ({
-            ...prev,
-            users: [...prev.users, data.data!.user],
-          }));
-
-        }
-      },
-
-      leave_space: (data: SocketResponse<{ id: string }>) => {
-        if (data.success) {
-          setGameState(prev => ({
-            ...prev,
-            users: prev.users.filter((user) => user.id != data.data!.id),
-          }))
-        }
-      },
-
       disconnect: () => {
-        setGameState(prev => ({ ...prev, connected: false }));
+        console.log("WebSocket disconnected");
+        setGameState((prev) => ({ ...prev, connected: false }));
         setIsConnecting(false);
-      }
+      },
     };
 
     Object.entries(socketEvents).forEach(([event, handler]) => {
@@ -242,69 +154,19 @@ const VirtualSpace: React.FC = () => {
     };
   }, [spaceId, user, isLoading]);
 
-
   const handleMovement = (newPosition: Position) => {
-    console.log("hanele movement")
-    if (!socket || !gameState.map || !gameState.connected) return;
+    if (!socket || !gameState.connected) return;
 
-    const { width, height } = gameState.map;
-
-    // Validate boundaries
-    if (newPosition.x < 0 || newPosition.x > width ||
-      newPosition.y < 0 || newPosition.y > height) {
-      return;
-    }
-
-    const moveTimestamp = Date.now();
-    lastMovementRef.current = {
-      position: newPosition,
-      timestamp: moveTimestamp
-    };
-
-    // Update local state immediately for smooth movement
-    setGameState(prev => {
-      const updatedUsers = prev.users.map(u =>
-        u.id === prev.currentUserId
-          ? {
-            ...u,
-            position: newPosition,
-            lastMoveTimestamp: moveTimestamp
-          }
-          : u
-      );
-
-      return {
-        ...prev,
-        position: newPosition,
-        users: updatedUsers
-      };
-    });
-    console.log('movement got emitted');
-
-    // Emit movement to server
     socket.emit("movement", {
       x: newPosition.x,
       y: newPosition.y,
-      timestamp: moveTimestamp
+      timestamp: Date.now(),
     });
   };
 
-
-  useEffect(() => {
-    console.log("GameState updated:", gameState);
-  }, [gameState]);
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (isConnecting) {
-    return <div>Connecting to space...</div>;
-  }
-
-  if (!gameState.connected) {
-    return <div>Disconnected from space. Attempting to reconnect...</div>;
-  }
+  if (isLoading) return <div>Loading...</div>;
+  if (isConnecting) return <div>Connecting to space...</div>;
+  if (!gameState.connected) return <div>Disconnected from space...</div>;
 
   return (
     <Card className="virtual-space relative">
@@ -317,27 +179,20 @@ const VirtualSpace: React.FC = () => {
         currentUserId={gameState.currentUserId}
         onMove={handleMovement}
       />
-      {gameState.map && (
-        <Minimap
-          canvasWidth={gameState.map.width}
-          canvasHeight={gameState.map.height}
-          viewportWidth={window.innerWidth}
-          viewportHeight={window.innerHeight}
-          position={gameState.position}
-          backgroundColor="#fff"
-          // elements={gameState.elements}
-          onPositionChange={handleMovement}
-        />
-      )}
-      {user && (
-        <UserList
-          users={gameState.users}
-          currentUserId={user.id}
-        />
-      )}
+
+      {/* {gameState.map && backgroundImageRef.current && (<Minimap
+        canvasWidth={gameState.map.width}
+        canvasHeight={gameState.map.height}
+        viewportWidth={window.innerWidth}
+        viewportHeight={window.innerHeight}
+        position={gameState.position}
+        elements={gameState.elements.map((item) => ({ ...item, position: { x: item.x, y: item.y }, size: { width: 100, height: 100 } }))}
+        backgroundColor={`url(${backgroundImageRef.current?.src})`}
+      />)} */}
+      {user && <UserList users={gameState.users} currentUserId={user.id} />}
     </Card>
   );
-
-}
+};
 
 export default VirtualSpace;
+
