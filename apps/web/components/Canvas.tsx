@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Position, SpaceElements, User } from "@/types/Space";
+import { avatarsBaseUrl, objectsBaseUrl } from "@/utils/Links";
 
 interface CanvasProps {
   users: User[];
@@ -13,7 +14,7 @@ interface CanvasProps {
 
 const VIEWPORT_WIDTH = window.innerWidth;
 const VIEWPORT_HEIGHT = window.innerHeight;
-const CHARACTER_SIZE = 40;
+const CHARACTER_SIZE = 100;
 const MOVEMENT_SPEED = 5;
 
 const Canvas: React.FC<CanvasProps> = ({
@@ -28,6 +29,57 @@ const Canvas: React.FC<CanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number>();
   const keysPressed = useRef<Set<string>>(new Set());
+  const elementImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const userAvatarsRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  // Preload element images
+  useEffect(() => {
+    let loadedCount = 0;
+    const totalImages = elements.length;
+
+    elements.forEach((element) => {
+      if (!elementImagesRef.current.has(element.id)) {
+        const img = new Image();
+        img.src = objectsBaseUrl + element.imageUrl;
+        img.onload = () => {
+          elementImagesRef.current.set(element.id, img);
+          loadedCount++;
+          if (loadedCount === totalImages) {
+            setImagesLoaded(true);
+          }
+        };
+        img.onerror = () => {
+          console.error(`Failed to load image for element: ${element.id}`);
+          loadedCount++;
+          if (loadedCount === totalImages) {
+            setImagesLoaded(true);
+          }
+        };
+      }
+    });
+
+    // If there are no elements, set imagesLoaded to true
+    if (totalImages === 0) {
+      setImagesLoaded(true);
+    }
+  }, [elements]);
+
+  // Preload user avatars
+  useEffect(() => {
+    users.forEach((user) => {
+      if (user.avatar?.imageUrl && !userAvatarsRef.current.has(user.id)) {
+        const img = new Image();
+        img.src = `${avatarsBaseUrl}${user.avatar.imageUrl}`;
+        img.onload = () => {
+          userAvatarsRef.current.set(user.id, img);
+        };
+        img.onerror = () => {
+          console.error(`Failed to load avatar for user: ${user.id}`);
+        };
+      }
+    });
+  }, [users]);
 
   const calculateCameraOffset = useCallback((playerPos: Position) => {
     if (!map) return { x: 0, y: 0 };
@@ -62,7 +114,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    if (!ctx || !map || !canvas) return;
+    if (!ctx || !map || !canvas || !imagesLoaded) return;
 
     const currentUser = users.find(u => u.id === currentUserId);
     if (!currentUser?.position) return;
@@ -74,32 +126,38 @@ const Canvas: React.FC<CanvasProps> = ({
     ctx.save();
     ctx.translate(-cameraOffset.x, -cameraOffset.y);
 
+    // Draw background
     if (backgroundImageRef.current) {
       ctx.drawImage(backgroundImageRef.current, 0, 0, map.width, map.height);
     }
 
+    // Draw elements with their images
     elements.forEach((element) => {
-      ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
-      ctx.fillRect(element.x, element.y, element.width, element.height);
+      const elementImage = elementImagesRef.current.get(element.id);
+      if (elementImage) {
+        ctx.drawImage(
+          elementImage,
+          element.x,
+          element.y,
+          element.width,
+          element.height
+        );
+      } else {
+        // Fallback in case image failed to load
+        ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
+        ctx.fillRect(element.x, element.y, element.width, element.height);
+      }
     });
 
+    // Draw users
     users.forEach((user) => {
+      if (!user.position) return;
+
       ctx.save();
-      ctx.translate(user.position!.x, user.position!.y);
+      ctx.translate(user.position.x, user.position.y);
 
-      ctx.beginPath();
-      ctx.fillStyle = user.id === currentUserId ? "#4CAF50" : "#2196F3";
-      ctx.arc(0, 0, CHARACTER_SIZE / 2, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "white";
-      ctx.font = "14px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(user.nickname, 0, -CHARACTER_SIZE / 2 - 5);
-
-      if (user.avatar?.imageUrl) {
-        const avatar = new Image();
-        avatar.src = user.avatar.imageUrl;
+      const avatar = userAvatarsRef.current.get(user.id);
+      if (avatar) {
         ctx.drawImage(
           avatar,
           -CHARACTER_SIZE / 2,
@@ -107,7 +165,17 @@ const Canvas: React.FC<CanvasProps> = ({
           CHARACTER_SIZE,
           CHARACTER_SIZE
         );
+      } else {
+        ctx.beginPath();
+        ctx.fillStyle = user.id === currentUserId ? "#4CAF50" : "#2196F3";
+        ctx.arc(0, 0, CHARACTER_SIZE / 2, 0, Math.PI * 2);
+        ctx.fill();
       }
+
+      ctx.fillStyle = "white";
+      ctx.font = "14px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(user.nickname, 0, -CHARACTER_SIZE / 2 - 5);
 
       ctx.restore();
     });
@@ -131,7 +199,7 @@ const Canvas: React.FC<CanvasProps> = ({
     }
 
     animationFrameRef.current = requestAnimationFrame(render);
-  }, [users, elements, map, currentUserId, onMove, calculateCameraOffset, backgroundImageRef]);
+  }, [users, elements, map, currentUserId, onMove, calculateCameraOffset, backgroundImageRef, imagesLoaded]);
 
   useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(render);

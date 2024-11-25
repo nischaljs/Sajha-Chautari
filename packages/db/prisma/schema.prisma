@@ -12,7 +12,7 @@ model User {
   email         String  @unique
   password      String
   nickname      String
-  avatarId      String? @unique
+  avatarId      String? 
   spaces        Space[] @relation("UserSpaces")
   avatar        Avatar? @relation("UserAvatar", fields: [avatarId], references: [id])
   createdSpaces Space[] @relation("Creator")

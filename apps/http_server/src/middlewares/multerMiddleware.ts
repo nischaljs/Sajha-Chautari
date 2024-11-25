@@ -12,7 +12,7 @@ const ensureDirectoryExists = (folder: string) => {
 // Dynamic storage for different file types
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const folder = file.fieldname === 'thumbnail' ? 'src/public/uploads/maps' : file.fieldname == 'avatars' ? 'src/public/uplods/avatars' : 'src/public/uploads/objects';
+    const folder = file.fieldname === 'thumbnail' ? 'src/public/uploads/maps' : file.fieldname == 'avatars' ? 'src/public/uploads/avatars' : 'src/public/uploads/objects';
     ensureDirectoryExists(folder);
     cb(null, folder);
   },
@@ -24,14 +24,15 @@ const storage = multer.diskStorage({
 
 // Validate file types (images only)
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and SVG are allowed.'));
   }
-  console.log('passed the file filter');
 };
+
+console.log('reached the multer thing')
 
 const upload = multer({
   storage,

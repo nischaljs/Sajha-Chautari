@@ -11,6 +11,7 @@ export const getArenaDetailsController = async (
   next: NextFunction,
 ) => {
   try {
+    console.log('fetch arena details reached');
     const spaceId = req.params?.spaceId;
     const arenaDetail = await prisma.space.findFirst({
       where: {
@@ -60,17 +61,22 @@ export const getArenaDetailsController = async (
             role: true,
           }
         },
-        // Include connected users
+        // Include connected users with their avatars
         users: {
-          select: {
-            id: true,
-            nickname: true,
-            avatarId: true,
-            role: true,
-          }
-        }
-      }
+          include: {
+            avatar: {
+              select: {
+                id: true,
+                imageUrl: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
+
+    console.log(arenaDetail);
     res
       .status(HttpStatusCode.Ok)
       .json(
@@ -83,6 +89,7 @@ export const getArenaDetailsController = async (
     next(error);
   }
 };
+
 
 export const addElementsToArenaController = async (
   req: Request,

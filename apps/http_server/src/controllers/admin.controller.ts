@@ -75,14 +75,18 @@ export const createAvatar = async (
   next: NextFunction,
 ) => {
   try {
+    console.log("avatars controllers", req.file);
     const parsedData = createAvtarSchema.safeParse(req.body);
     if (!parsedData.success) {
       throw new AppError(HttpStatusCode.BadRequest, "Invalid avatar Data");
     }
+    if(!req.file?.filename){
+      throw new AppError(HttpStatusCode.InternalServerError,"Couldnot upload the avat image");
+    }
     const createdAvatar = await prisma.avatar.create({
       data: {
         name: parsedData.data.name,
-        imageUrl: parsedData.data.imageUrl,
+        imageUrl: req.file?.filename || '',
       },
     });
 

@@ -34,7 +34,7 @@ adminRouter.put("/:elementId", updateElement);
 
 adminRouter.get("/maps/:mapId",getMapDetailsController);
 
-adminRouter.post("/avatars", createAvatar);
+adminRouter.post("/avatars", upload.single("avatars"), createAvatar);
 
 adminRouter.post("/maps",upload.single("thumbnail"), createMapController);
 

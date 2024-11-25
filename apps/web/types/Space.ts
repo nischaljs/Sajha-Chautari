@@ -11,7 +11,7 @@ export interface Space {
   map: {
     thumbnail: string;
   };
-  users: any[];
+  users: User[];
 }
 
 export interface User {
@@ -21,10 +21,7 @@ export interface User {
   avatarId?: string;
   lastMoveTimestamp?: number;
   role?: 'Admin' | 'Creator' | 'User';
-  position?: {
-    x: number;
-    y: number;
-  };
+  position?: Position;
   avatar?: {
     id: string;
     imageUrl?: string;
@@ -53,9 +50,15 @@ export interface SpaceElement {
   element: Element;
 }
 
-export interface SpaceElements extends Element{
+export interface SpaceElements {
+  id: string;
   x: number;
   y: number;
+  width: number;
+  height: number;
+  imageUrl: string;
+  static: boolean;
+  name: string;
 }
 
 export interface GameMap {
@@ -80,15 +83,14 @@ export interface SpaceDetailsResponse {
   id: string;
   name: string;
   capacity: number;
-  elements: SpaceElements[];
+  elements: SpaceElement[];
   map: GameMap;
   creator: User;
   users: User[];
 }
 
-
 export interface GameState {
-  users:User[];
+  users: User[];
   position: Position;
   connected: boolean;
   error: string;
@@ -103,3 +105,4 @@ export interface SocketResponse<T> {
   error?: string;
   data?: T;
 }
+

@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User } from "@/types/User";
 import { ChevronRight, ChevronLeft, Users, Circle } from "lucide-react";
+import { avatarsBaseUrl } from "@/utils/Links";
 
 interface UserListProps {
     users: User[] | null;
@@ -17,19 +18,18 @@ const UserList: React.FC<UserListProps> = ({ users = [], currentUserId }) => {
         return null;
     }
 
+    console.log("users in list", users)
     return (
         <div
-            className={`fixed right-4 top-4 transition-all duration-300 ease-in-out z-50 ${
-                isCollapsed ? "w-32" : "w-72"
-            }`}
+            className={`fixed right-4 top-4 transition-all duration-300 ease-in-out z-50 ${isCollapsed ? "w-32" : "w-72"
+                }`}
         >
             <Card className="h-auto flex overflow-hidden rounded-xl border-0 shadow-lg bg-white/90 backdrop-blur-sm relative">
                 {/* Slim collapse toggle button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className={`absolute left-0 top-0 h-full bg-gradient-to-b ${
-                        isCollapsed ? "from-indigo-600 to-indigo-700" : "from-indigo-500 to-indigo-600"
-                    } hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 flex items-center justify-center w-6`}
+                    className={`absolute left-0 top-0 h-full bg-gradient-to-b ${isCollapsed ? "from-indigo-600 to-indigo-700" : "from-indigo-500 to-indigo-600"
+                        } hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 flex items-center justify-center w-6`}
                 >
                     <span className="flex items-center justify-center">
                         {isCollapsed ? (
@@ -63,15 +63,15 @@ const UserList: React.FC<UserListProps> = ({ users = [], currentUserId }) => {
                                     {users.map((user) => (
                                         <li
                                             key={user.id}
-                                            className={`flex items-center p-2.5 rounded-lg ${
-                                                user.id === currentUserId
+                                            className={`flex items-center p-2.5 rounded-lg ${user.id === currentUserId
                                                     ? "bg-indigo-50 border border-indigo-100"
                                                     : "hover:bg-gray-50"
-                                            } transition-all duration-200`}
+                                                } transition-all duration-200`}
                                         >
                                             <div className="relative">
                                                 <img
-                                                    src={user.avatar?.imageUrl || DEFAULT_AVATAR_URL}
+
+                                                    src={avatarsBaseUrl + user.avatar.imageUrl || DEFAULT_AVATAR_URL}
                                                     alt={`${user.nickname || "User"}'s avatar`}
                                                     className="w-10 h-10 rounded-full object-cover ring-2 ring-white"
                                                     onError={(e) => {

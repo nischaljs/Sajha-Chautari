@@ -13,9 +13,13 @@ import {
   Position,
   SocketResponse,
   SpaceDetailsResponse,
+  SpaceElement,
+  SpaceElements,
+  MapElement
 } from "@/types/Space";
 import { User } from "@/types/User";
 import { Minimap } from "@/components/MiniMap";
+import { MiniMapUser } from "@/components/MiniMapUser";
 
 const initialGameState: GameState = {
   users: [],
@@ -26,6 +30,31 @@ const initialGameState: GameState = {
   elements: [],
   spaceDetails: null,
   currentUserId: "",
+};
+
+// Helper function to transform elements to the correct type
+const transformElements = (
+  mapElements: MapElement[] = [],
+  spaceElements: SpaceElement[] = []
+): SpaceElements[] => {
+  const transformElement = (element: MapElement | SpaceElement): SpaceElements => {
+    const baseElement = 'element' in element ? element.element : element;
+    return {
+      id: element.id,
+      x: element.x,
+      y: element.y,
+      width: baseElement.width,
+      height: baseElement.height,
+      imageUrl: baseElement.imageUrl,
+      static: baseElement.static,
+      name: baseElement.name,
+    };
+  };
+
+  return [
+    ...mapElements.map(transformElement),
+    ...spaceElements.map(transformElement)
+  ];
 };
 
 const VirtualSpace: React.FC = () => {
@@ -56,18 +85,19 @@ const VirtualSpace: React.FC = () => {
       try {
         const response = await api.get<{ data: SpaceDetailsResponse }>(`/arenas/${spaceId}`);
         const spaceData = response.data.data;
+        console.log('spaceData',spaceData);
         preloadBackgroundImage(spaceData);
 
-        const combinedElements = [
-          ...(spaceData.map.mapElements || []),
-          ...(spaceData.elements || []),
-        ];
+        const transformedElements = transformElements(
+          spaceData.map.mapElements,
+          spaceData.elements
+        );
 
         setGameState((prev) => ({
           ...prev,
           spaceDetails: spaceData,
           map: spaceData.map,
-          elements: combinedElements,
+          elements: transformedElements,
           position: { x: spaceData.map.dropX, y: spaceData.map.dropY },
           connected: true,
           error: "",
@@ -180,19 +210,22 @@ const VirtualSpace: React.FC = () => {
         onMove={handleMovement}
       />
 
-      {/* {gameState.map && backgroundImageRef.current && (<Minimap
-        canvasWidth={gameState.map.width}
-        canvasHeight={gameState.map.height}
-        viewportWidth={window.innerWidth}
-        viewportHeight={window.innerHeight}
-        position={gameState.position}
-        elements={gameState.elements.map((item) => ({ ...item, position: { x: item.x, y: item.y }, size: { width: 100, height: 100 } }))}
-        backgroundColor={`url(${backgroundImageRef.current?.src})`}
-      />)} */}
+      {gameState.map && backgroundImageRef.current && (
+        <MiniMapUser
+          canvasWidth={gameState.map.width}
+          canvasHeight={gameState.map.height}
+          viewportWidth={window.innerWidth}
+          viewportHeight={window.innerHeight}
+          position={gameState.position}
+          elements={gameState.elements}
+          users={gameState.users}
+          currentUserId={gameState.currentUserId}
+          backgroundColor={`url(${backgroundImageRef.current.src})`}
+        />
+      )}
       {user && <UserList users={gameState.users} currentUserId={user.id} />}
     </Card>
   );
 };
 
 export default VirtualSpace;
-

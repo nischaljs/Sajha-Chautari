@@ -59,7 +59,6 @@ export const addElementAdminSchema = z.object({
 export type addElementAdminType = z.infer<typeof addElementAdminSchema>;
 
 export const createAvtarSchema = z.object({
-  imageUrl: z.string(),
   name: z.string(),
 });
 export const createMapSchema = z.object({

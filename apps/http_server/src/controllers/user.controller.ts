@@ -121,7 +121,8 @@ try {
       nickname:true,
       email:true,
       id:true,
-    }
+      avatar:true
+    },
   })
   res.status(HttpStatusCode.Ok).json(new SuccessResponse("User retrieved succesfully",user));
 } catch (error) {
