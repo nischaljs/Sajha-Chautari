@@ -110,27 +110,26 @@ const Canvas: React.FC<CanvasProps> = ({
       }
     };
   }, [map]);
-
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx || !map || !canvas || !imagesLoaded) return;
-
-    const currentUser = users.find(u => u.id === currentUserId);
+  
+    const currentUser = users.find((u) => u.id === currentUserId);
     if (!currentUser?.position) return;
-
+  
     const cameraOffset = calculateCameraOffset(currentUser.position);
-
+  
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+  
     ctx.save();
     ctx.translate(-cameraOffset.x, -cameraOffset.y);
-
+  
     // Draw background
     if (backgroundImageRef.current) {
       ctx.drawImage(backgroundImageRef.current, 0, 0, map.width, map.height);
     }
-
+  
     // Draw elements with their images
     elements.forEach((element) => {
       const elementImage = elementImagesRef.current.get(element.id);
@@ -143,19 +142,18 @@ const Canvas: React.FC<CanvasProps> = ({
           element.height
         );
       } else {
-        // Fallback in case image failed to load
         ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
         ctx.fillRect(element.x, element.y, element.width, element.height);
       }
     });
-
+  
     // Draw users
     users.forEach((user) => {
       if (!user.position) return;
-
+  
       ctx.save();
       ctx.translate(user.position.x, user.position.y);
-
+  
       const avatar = userAvatarsRef.current.get(user.id);
       if (avatar) {
         ctx.drawImage(
@@ -171,35 +169,58 @@ const Canvas: React.FC<CanvasProps> = ({
         ctx.arc(0, 0, CHARACTER_SIZE / 2, 0, Math.PI * 2);
         ctx.fill();
       }
-
-      ctx.fillStyle = "white";
+  
+      ctx.fillStyle = "red";
       ctx.font = "14px Arial";
       ctx.textAlign = "center";
       ctx.fillText(user.nickname, 0, -CHARACTER_SIZE / 2 - 5);
-
+  
       ctx.restore();
     });
-
+  
     ctx.restore();
-
+  
+    // Calculate movement based on key presses
     let moveX = 0;
     let moveY = 0;
-
+  
     if (keysPressed.current.has("w") || keysPressed.current.has("arrowup")) moveY -= MOVEMENT_SPEED;
     if (keysPressed.current.has("s") || keysPressed.current.has("arrowdown")) moveY += MOVEMENT_SPEED;
     if (keysPressed.current.has("a") || keysPressed.current.has("arrowleft")) moveX -= MOVEMENT_SPEED;
     if (keysPressed.current.has("d") || keysPressed.current.has("arrowright")) moveX += MOVEMENT_SPEED;
-
+  
     if (moveX !== 0 || moveY !== 0) {
       const newPos = {
         x: Math.max(CHARACTER_SIZE / 2, Math.min(currentUser.position.x + moveX, map.width - CHARACTER_SIZE / 2)),
         y: Math.max(CHARACTER_SIZE / 2, Math.min(currentUser.position.y + moveY, map.height - CHARACTER_SIZE / 2)),
       };
-      onMove(newPos);
+  
+      // Check for collisions
+      const isCollidingWithElement = elements.some((element) => {
+        return (
+          newPos.x + CHARACTER_SIZE / 2 > element.x &&
+          newPos.x - CHARACTER_SIZE / 2 < element.x + element.width &&
+          newPos.y + CHARACTER_SIZE / 2 > element.y &&
+          newPos.y - CHARACTER_SIZE / 2 < element.y + element.height
+        );
+      });
+  
+      const isCollidingWithUser = users.some((user) => {
+        if (user.id === currentUserId || !user.position) return false;
+        const distX = newPos.x - user.position.x;
+        const distY = newPos.y - user.position.y;
+        const distance = Math.sqrt(distX * distX + distY * distY);
+        return distance < CHARACTER_SIZE; // Collision if distance is less than character size
+      });
+  
+      if (!isCollidingWithElement && !isCollidingWithUser) {
+        onMove(newPos);
+      }
     }
-
+  
     animationFrameRef.current = requestAnimationFrame(render);
   }, [users, elements, map, currentUserId, onMove, calculateCameraOffset, backgroundImageRef, imagesLoaded]);
+  
 
   useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(render);

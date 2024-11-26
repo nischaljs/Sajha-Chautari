@@ -95,7 +95,7 @@ export function handleMovement(socket: Socket, io: Server) {
       
       
       
-      console.log('you triggered movement 2')
+    
 
       // Check position availability
       const isOccupied = await checkPositionAvailability(
@@ -126,7 +126,7 @@ export function handleMovement(socket: Socket, io: Server) {
       userStates[spaceId].set(userId, updatedState);
       const allUsers = Array.from(userStates[spaceId].values());
 
-      console.log("movement result is to be initiated ")
+    
       // Emit to all users including the moving user
       socket.emit("movementResult", {
         success: true,
@@ -138,7 +138,7 @@ export function handleMovement(socket: Socket, io: Server) {
       });
 
 
-      console.log("others moved ")
+    
 
       socket.broadcast.to(spaceId).emit("others_move", {
         success: true,

@@ -1,6 +1,7 @@
 "use client";
 
 import SpacesCard from "@/components/SpacesCard";
+import ProfileEditor from "@/components/profile-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,14 +44,14 @@ export default function SpacesPage() {
   async function fetchPublicSpaces() {
     try {
       const response = await api.get("/spaces/public");
+      
       if (!response?.data?.success) {
         throw new Error("Failed to fetch public spaces");
       }
-      // Ensure we're setting an array
       setPublicSpaces(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load public spaces");
-      setPublicSpaces([]); // Set empty array on error
+      setPublicSpaces([]);
     }
   }
 
@@ -60,13 +61,20 @@ export default function SpacesPage() {
       if (!response?.data?.success) {
         throw new Error("Failed to fetch spaces");
       }
-      // Ensure we're setting an array
       setSpaces(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load spaces");
-      setSpaces([]); // Set empty array on error
+      setSpaces([]);
     }
   }
+
+  const handleProfileUpdate = (updatedUser: any) => {
+    // This function would typically update your user context
+    // Implement according to your user state management approach
+    
+    // You might want to refresh the page or update the user context here
+    window.location.reload(); // Simple solution - you might want to implement a more elegant solution
+  };
 
   const getDisplaySpaces = (): Space[] => {
     if (activeTab === "public") {
@@ -75,7 +83,6 @@ export default function SpacesPage() {
     if (activeTab === "joined") {
       return spaces.filter(space => space.creator.id !== user?.id);
     }
-    console.log("the spaces you made")
     return spaces.filter(space => space.creator.id === user?.id);
   };
 
@@ -116,13 +123,23 @@ export default function SpacesPage() {
             <div>
               <h1 className="text-4xl font-bold text-gray-900">Spaces</h1>
               <p className="text-gray-500 mt-2">
-                {user ? `Welcome back, ${user.nickname}!` : "Loading user..."}
+                {user?.nickname ? `Welcome back, ${user.nickname}!` : "Please complete your profile"}
               </p>
             </div>
-            <Button onClick={() => router.push("/spaces/create")} size="lg">
-              <Plus className="h-5 w-5 mr-2" />
-              Create Space
-            </Button>
+            <div className="flex gap-4">
+              <Button 
+                onClick={() => router.push("/spaces/create")} 
+                size="lg"
+                disabled={!user?.nickname}
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Create Space
+              </Button>
+              <ProfileEditor 
+                user={user} 
+                onProfileUpdate={handleProfileUpdate}
+              />
+            </div>
           </div>
 
           <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
@@ -156,7 +173,10 @@ export default function SpacesPage() {
                     <p className="text-gray-500 text-center max-w-sm mb-6">
                       {emptyState.description}
                     </p>
-                    <Button onClick={() => router.push(emptyState.actionPath)}>
+                    <Button 
+                      onClick={() => router.push(emptyState.actionPath)}
+                      disabled={!user?.nickname}
+                    >
                       {emptyState.actionText}
                     </Button>
                   </CardContent>

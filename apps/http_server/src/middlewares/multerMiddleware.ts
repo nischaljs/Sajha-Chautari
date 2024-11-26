@@ -32,7 +32,6 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
   }
 };
 
-console.log('reached the multer thing')
 
 const upload = multer({
   storage,

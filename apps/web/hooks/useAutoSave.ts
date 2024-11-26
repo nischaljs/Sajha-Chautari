@@ -20,13 +20,11 @@ export const useAutoSave = (
                 width: item.size?.width || 0,
                 height: item.size?.height || 0,
             }));
-            console.log("Saving elements:", elementPositions);
 
             const response = await api.post("/admin/map/element", {
                 mapId,
                 defaultElements: elementPositions,
             });
-            console.log(response.data)
 
             setIsSaving(false);
         } catch (error) {

@@ -74,7 +74,7 @@ const VirtualSpace: React.FC = () => {
     image.alt = spaceData.map.name;
     image.onload = () => {
       backgroundImageRef.current = image;
-      console.log("Background image loaded:", image.src);
+  
     };
   };
 
@@ -85,7 +85,7 @@ const VirtualSpace: React.FC = () => {
       try {
         const response = await api.get<{ data: SpaceDetailsResponse }>(`/arenas/${spaceId}`);
         const spaceData = response.data.data;
-        console.log('spaceData',spaceData);
+    
         preloadBackgroundImage(spaceData);
 
         const transformedElements = transformElements(
@@ -103,7 +103,7 @@ const VirtualSpace: React.FC = () => {
           error: "",
         }));
       } catch (error) {
-        console.error("Failed to fetch space details:", error);
+    
         setGameState((prev) => ({ ...prev, error: "Failed to load space data." }));
       }
     };
@@ -131,7 +131,7 @@ const VirtualSpace: React.FC = () => {
 
     const socketEvents = {
       connect: () => {
-        console.log("WebSocket connected");
+    
         setGameState((prev) => ({ ...prev, connected: true }));
         setIsConnecting(false);
       },
@@ -166,7 +166,7 @@ const VirtualSpace: React.FC = () => {
         }
       },
       disconnect: () => {
-        console.log("WebSocket disconnected");
+    
         setGameState((prev) => ({ ...prev, connected: false }));
         setIsConnecting(false);
       },

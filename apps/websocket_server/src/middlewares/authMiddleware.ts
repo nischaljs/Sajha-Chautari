@@ -9,7 +9,7 @@ export function authMiddleware(socket: Socket, next: (err?: Error) => void) {
   token = socket.handshake.auth.token;
   spaceId = socket.handshake.auth.spaceId;
   user = socket.handshake.auth.user;
-  console.log("user here received form hadnshake ", user);
+
   isValidTokenAndSpace()
     .then((isValid) => {
       if (isValid.bool) {
@@ -17,7 +17,7 @@ export function authMiddleware(socket: Socket, next: (err?: Error) => void) {
         socket.data.spaceId = spaceId;
         socket.data.mapData = isValid.mapData;
         socket.data.user = user;
-        console.log("this user has been validated", socket.data.user);
+      
         next();
       } else {
         const error = new Error("Unauthorized");
@@ -49,7 +49,7 @@ async function isValidTokenAndSpace(): Promise<{
 
     return { bool: true, user: response?.data?.data?.user, mapData:response?.data?.data?.spaceResponse?.map };
   } catch (error) {
-    console.error("Error during token validation:", error);
+  
     return { bool: false, user: null, mapData:null };
   }
 }

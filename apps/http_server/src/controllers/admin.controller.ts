@@ -16,13 +16,10 @@ export const addElements = async (
   next: NextFunction,
 ) => {
   try {
-    console.log('add elements',req.body);
     const data = addElementAdminSchema.safeParse(req.body);
-    console.log(data.error);
     if (!data.success) {
       throw new AppError(HttpStatusCode.BadRequest, "Invalid element Data");
     }
-    console.log("passed the parse")
     const element = data.data;
     const createdElement = await prisma.element.create({
       data: {
@@ -75,7 +72,6 @@ export const createAvatar = async (
   next: NextFunction,
 ) => {
   try {
-    console.log("avatars controllers", req.file);
     const parsedData = createAvtarSchema.safeParse(req.body);
     if (!parsedData.success) {
       throw new AppError(HttpStatusCode.BadRequest, "Invalid avatar Data");
@@ -104,8 +100,6 @@ export const createMapController = async (
   next: NextFunction
 ) => {
   try {
-    console.log("reached ehre in the ma controller", req.file?.filename)
-    console.log(req.body);
     const parsedData = createMapSchema.safeParse(req.body);
 
     if (!parsedData.success) {
@@ -146,7 +140,6 @@ export const addMapElementsController = async (
     if (!parsedData.success) {
       throw new AppError(HttpStatusCode.BadRequest, "Invalid data input");
     }
-    console.log(parsedData.data);
 
     const { mapId, defaultElements } = parsedData.data;
 

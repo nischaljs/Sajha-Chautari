@@ -69,11 +69,11 @@ const MapEditor: React.FC = () => {
     // Fetch map details
     useEffect(() => {
         const fetchMapDetails = async () => {
-            console.log('mapId is present', mapId);
+
             if (mapId && mapId !== 'createMap') {
                 try {
                     const response = await api.get(`/admin/maps/${mapId}`);
-                    console.log(response.data);
+        
                     if (response.data.success) {
                         const { map, elements } = response.data.data;
 
@@ -93,7 +93,7 @@ const MapEditor: React.FC = () => {
                         }
                     }
                 } catch (error) {
-                    console.error("Failed to fetch map details", error);
+        
                     alert("Failed to load map details");
                 }
             }
@@ -111,7 +111,7 @@ const MapEditor: React.FC = () => {
                     setAvailableElements(response.data.data);
                 }
             } catch (error) {
-                console.error("Failed to fetch elements", error);
+    
             }
         };
 
@@ -200,10 +200,10 @@ const MapEditor: React.FC = () => {
                 height: element.height,
                 static: element.static
             });
-            console.log(elementJson)
+            
             e.dataTransfer?.setData('application/json', elementJson);
         } catch (error) {
-            console.error("Error during drag start", error);
+            
         }
     };
 
@@ -222,14 +222,14 @@ const MapEditor: React.FC = () => {
                 // Try parsing the dropped data
                 const data = e.dataTransfer.getData('application/json');
                 const parsedData = JSON.parse(data);
-                console.log("after drop", parsedData);
+                
 
                 // Check if the position is within the canvas bounds
                 if (snappedX >= 0 && snappedX <= canvasSize.width && snappedY >= 0 && snappedY <= canvasSize.height) {
                     // Process the element with snapped position
                     const element = { ...parsedData, position: { x: snappedX, y: snappedY } };
-                    console.log('Dropped element:', element);
-                    console.log("canvas elements", canvasItems);
+                    
+                    
 
                     // Only add the element once
                     setCanvasItems((prev) => [...prev, element]);
@@ -237,7 +237,7 @@ const MapEditor: React.FC = () => {
             }
 
         } catch (error: any) {
-            console.error('Error processing drop:', error);
+            
             alert(`An error occurred: ${error.message}. Please try again.`);
         }
     };
@@ -254,7 +254,7 @@ const MapEditor: React.FC = () => {
         if (canvasItems.length == 1) {
             removeLastCanvasItem();
         }
-        console.log('delete triggered for this element at this position ', position);
+        
         setCanvasItems(prev => prev.filter(element => element?.position !== position));
 
     }

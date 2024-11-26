@@ -87,26 +87,3 @@ export interface Position {
     return true;
   };
   
-  // Logger utility
-  export const logger = {
-    info: (message: string, meta?: object) => {
-      console.log(`[INFO] ${message}`, meta ? JSON.stringify(meta, null, 2) : '');
-    },
-    error: (message: string, error: Error, meta?: object) => {
-      console.error(
-        `[ERROR] ${message}`,
-        {
-          error: {
-            stack: error.stack,
-            ...(error as ServiceError),
-          },
-          ...meta,
-        }
-      );
-    },
-    debug: (message: string, meta?: object) => {
-      if (process.env.NODE_ENV !== 'production') {
-        console.debug(`[DEBUG] ${message}`, meta ? JSON.stringify(meta, null, 2) : '');
-      }
-    },
-  };

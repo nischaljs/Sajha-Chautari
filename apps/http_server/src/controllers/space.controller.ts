@@ -11,9 +11,9 @@ export const createSpaceRouter = async (
   next: NextFunction,
 ) => {
   try {
-    console.log(req.body);
+
     const parsedData = createSpaceSchema.safeParse(req.body);
-    console.log(parsedData.error);
+
 
     if (!parsedData.success) {
       throw new AppError(HttpStatusCode.BadRequest, "Invalid request data");
@@ -194,10 +194,32 @@ export const getAllMaps = async(req:Request, res:Response, next:NextFunction) =>
 
 export const getPublicSpaces = async(req:Request,res:Response,next:NextFunction)=>{
 try {
-  const publicSpaces = prisma.space.findMany({
+  const publicSpaces = await prisma.space.findMany({
     where:{
       public:true
-    }
+    },
+    include: {
+
+      creator: {
+        select: {
+          id: true,
+          email: true,
+          nickname: true,
+        },
+      },
+      map: {
+        select: {
+          thumbnail: true,
+        },
+      },
+      users: {
+        select: {
+          id: true,
+          nickname: true,
+          avatarId: true,
+        },
+      },
+    },
   });
   res.status(HttpStatusCode.Ok).json(new SuccessResponse("Public spaces retrieved successfully",publicSpaces));
 } catch (error) {

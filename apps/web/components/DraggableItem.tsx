@@ -62,7 +62,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
       );
     });
 
-    console.log("Updated the canvas items");
+
   };
 
 

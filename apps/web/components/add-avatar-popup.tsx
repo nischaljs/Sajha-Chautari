@@ -55,7 +55,7 @@ const AddAvatarPopup: React.FC<AddAvatarPopupProps> = ({ onclose }) => {
           'Content-Type': 'multipart/form-data'
         }
       });
-      console.log(response);
+
 
       alert('Avatar created successfully');
       onclose(); // Close popup on success
