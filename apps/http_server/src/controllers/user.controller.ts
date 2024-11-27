@@ -4,6 +4,7 @@ import { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/AppError";
 import { SuccessResponse } from "../utils/SuccessResponse";
 import prisma from "../utils/prismaClient";
+import { role } from "../middlewares/authmiddleware";
 
 export const profileUpdateController = async (
   req: Request,
@@ -121,7 +122,8 @@ try {
       nickname:true,
       email:true,
       id:true,
-      avatar:true
+      avatar:true,
+      role:true
     },
   })
   res.status(HttpStatusCode.Ok).json(new SuccessResponse("User retrieved succesfully",user));

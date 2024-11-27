@@ -18,7 +18,7 @@ const UserList: React.FC<UserListProps> = ({ users = [], currentUserId }) => {
         return null;
     }
 
-    console.log("users in list", users)
+
     return (
         <div
             className={`fixed right-4 top-4 transition-all duration-300 ease-in-out z-50 ${isCollapsed ? "w-32" : "w-72"

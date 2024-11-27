@@ -85,6 +85,7 @@ const VirtualSpace: React.FC = () => {
       try {
         const response = await api.get<{ data: SpaceDetailsResponse }>(`/arenas/${spaceId}`);
         const spaceData = response.data.data;
+        console.log('space data',response.data.data)
     
         preloadBackgroundImage(spaceData);
 

@@ -2,19 +2,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 interface DraggableItemProps {
-  id: number;
+  canvas_id: string;
   initialPosition: { x: number; y: number };
   initialSize?: { width: number; height: number };
   gridSize: number;
   children: React.ReactNode;
-  item: any,
-  setCanvasItems: (item: any) => void;
-  onPositionChange?: (id: number, position: { x: number; y: number }) => void;
-  onDelete?: (position: { x: number; y: number }) => void; // New prop for deletion
+  item: any;
+  setCanvasItems: React.Dispatch<React.SetStateAction<any[]>>;
+  onDelete?: (position: { x: number; y: number }) => void;
 }
 
 export const DraggableItem: React.FC<DraggableItemProps> = ({
-  id,
+  canvas_id,
   initialPosition,
   initialSize,
   item,
@@ -29,7 +28,6 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const elementRef = useRef<HTMLDivElement>(null);
 
-  // Handle dragging
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target === elementRef.current) {
       setIsDragging(true);
@@ -44,30 +42,22 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
     if (isDragging) {
       const newX = Math.round((e.clientX - dragStart.x) / gridSize) * gridSize;
       const newY = Math.round((e.clientY - dragStart.y) / gridSize) * gridSize;
-
       setPosition({ x: newX, y: newY });
     }
-  }, [isDragging, dragStart, gridSize, id]);
+  }, [isDragging, dragStart, gridSize]);
 
   const handleMouseUp = () => {
     setIsDragging(false);
-
-    // Update the item position instead of adding a new one
-    setCanvasItems((prev: any) => {
-      // Find the index of the dragged item and update its position
-      return prev.map((existingItem: any) =>
-        existingItem.id === id
-          ? { ...existingItem, position }  // Update the position of the dragged item
-          : existingItem
-      );
-    });
-
-
+    
+    setCanvasItems(prev => prev.map(existingItem => 
+      existingItem.canvasId === canvas_id
+        ? { ...existingItem, position }
+        : existingItem
+    ));
   };
 
-
   const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering drag when clicking delete
+    e.stopPropagation();
     onDelete?.(position);
   };
 
@@ -93,15 +83,15 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
       }}
       onMouseDown={handleMouseDown}
     >
-      {/* Delete button */}
       <button
         onClick={handleDelete}
         className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
       >
         <X size={16} />
       </button>
-
       {children}
     </div>
   );
 };
+
+export default DraggableItem;

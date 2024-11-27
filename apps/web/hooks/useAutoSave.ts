@@ -1,29 +1,34 @@
+"use state"
+
+import { CanvasItem } from "@/app/admindash/[...mapId]/page";
 import api from "@/utils/axiosInterceptor";
 import { useCallback, useEffect, useState } from "react";
 
 export const useAutoSave = (
     mapId: string | null,
-    canvasItems: any[],
+    canvasItems: CanvasItem[],
     saveInterval: number = 10000
 ) => {
     const [isSaving, setIsSaving] = useState(false);
 
-    const saveToBackend = useCallback(async (data: any[]) => {
+    const saveToBackend = useCallback(async (data: CanvasItem[]) => {
         if (!mapId || mapId === "createMap") return;
+        console.log(data);
 
         try {
             setIsSaving(true);
-            const elementPositions = data.map(item => ({
-                elementId: item.id, // Ensure `id` exists on each item
-                x: item.position.x,
-                y: item.position.y,
-                width: item.size?.width || 0,
-                height: item.size?.height || 0,
+
+            // Create unique positions for elements with the same elementId
+            const elementPositions = data.map((item, index) => ({
+                elementId: item.id,
+                x: Math.round(item.position.x + (index * 0.1)), // Add tiny offset to prevent exact overlaps
+                y: Math.round(item.position.y + (index * 0.1)),
+                ...(item.canvasId && { id: item.canvasId })
             }));
 
-            const response = await api.post("/admin/map/element", {
+            await api.post(`/admin/maps/${mapId}/elements`, {
                 mapId,
-                defaultElements: elementPositions,
+                defaultElements: elementPositions
             });
 
             setIsSaving(false);
@@ -34,16 +39,18 @@ export const useAutoSave = (
     }, [mapId]);
 
     useEffect(() => {
+        if (!mapId || mapId === "createMap") return;
+
         const save = () => {
             if (canvasItems.length > 0) {
-                saveToBackend(canvasItems); // Send the full list of canvas items
+                saveToBackend(canvasItems);
             }
         };
 
+        save();
         const intervalId = setInterval(save, saveInterval);
-
-        return () => clearInterval(intervalId); // Clean up on unmount
-    }, [canvasItems, saveInterval, saveToBackend]);
+        return () => clearInterval(intervalId);
+    }, [canvasItems, saveInterval, saveToBackend, mapId]);
 
     return { isSaving };
 };

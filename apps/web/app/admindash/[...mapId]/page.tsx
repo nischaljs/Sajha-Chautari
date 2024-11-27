@@ -24,8 +24,8 @@ interface Element {
 }
 
 // Define Item interface for canvas items
-interface CanvasItem extends Element {
-    canvasId: number;
+export interface CanvasItem extends Element {
+    canvasId: string;
     position: { x: number; y: number };
 }
 
@@ -82,10 +82,12 @@ const MapEditor: React.FC = () => {
                         setCanvasSize({ width: map.width, height: map.height });
 
                         // Set canvas items from existing map elements
-                        setCanvasItems(elements.map((elem: any) => ({
+                        setCanvasItems(elements.map((elem: any,index:number) => ({
                             ...elem,
-                            canvasId: elem.canvasId || Date.now() // Fallback if no canvas ID
+                            canvasId: elem.canvasId || Date.now()+index+"date supplied" // Fallback if no canvas ID
                         })));
+
+                      
 
                         // Optional: Set background if thumbnail exists
                         if (map.thumbnail) {
@@ -259,7 +261,7 @@ const MapEditor: React.FC = () => {
 
     }
 
-
+    console.log(canvasItems,"canvas items");
     return (
         <div
             className="h-screen w-screen bg-gray-100 overflow-hidden relative select-none"
@@ -300,7 +302,7 @@ const MapEditor: React.FC = () => {
                         key={item.id + index}
                         item={item}
                         setCanvasItems={setCanvasItems}
-                        id={item.canvasId}
+                        canvas_id={item.canvasId}
                         initialPosition={item.position}
                         initialSize={{ width: item.width, height: item.height }}
                         gridSize={gridSize}

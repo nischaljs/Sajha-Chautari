@@ -76,6 +76,7 @@ export const getArenaDetailsController = async (
       },
     });
 
+    console.log(arenaDetail);
 
     res
       .status(HttpStatusCode.Ok)
