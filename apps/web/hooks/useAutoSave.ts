@@ -1,32 +1,27 @@
-"use state"
-
-import { CanvasItem } from "@/app/admindash/[...mapId]/page";
+import { CanvasItem, MapElement } from "@/types/Space";
 import api from "@/utils/axiosInterceptor";
 import { useCallback, useEffect, useState } from "react";
 
 export const useAutoSave = (
     mapId: string | null,
-    canvasItems: CanvasItem[],
+    canvasItems: MapElement[],
     saveInterval: number = 10000
 ) => {
     const [isSaving, setIsSaving] = useState(false);
 
-    const saveToBackend = useCallback(async (data: CanvasItem[]) => {
+    const saveToBackend = useCallback(async (items: MapElement[]) => {
         if (!mapId || mapId === "createMap") return;
-        console.log(data);
 
         try {
             setIsSaving(true);
 
-            // Create unique positions for elements with the same elementId
-            const elementPositions = data.map((item, index) => ({
-                elementId: item.id,
-                x: Math.round(item.position.x + (index * 0.1)), // Add tiny offset to prevent exact overlaps
-                y: Math.round(item.position.y + (index * 0.1)),
-                ...(item.canvasId && { id: item.canvasId })
+            const elementPositions = items.map(item => ({
+                elementId: item.elementId || item.element.id,
+                x: Math.round(item.x),
+                y: Math.round(item.y)
             }));
 
-            await api.post(`/admin/maps/${mapId}/elements`, {
+            await api.post(`/admin/map/element`, {
                 mapId,
                 defaultElements: elementPositions
             });
@@ -47,10 +42,11 @@ export const useAutoSave = (
             }
         };
 
-        save();
         const intervalId = setInterval(save, saveInterval);
         return () => clearInterval(intervalId);
     }, [canvasItems, saveInterval, saveToBackend, mapId]);
 
     return { isSaving };
 };
+
+

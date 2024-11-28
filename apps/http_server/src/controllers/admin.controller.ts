@@ -208,16 +208,9 @@ export const getMapDetailsController = async (
       throw new AppError(HttpStatusCode.NotFound, "Map not found");
     }
 
-    // Transform map elements to match frontend structure
-    const mappedElements = mapDetails.mapElements.map(mapElement => ({
-      ...mapElement.element,
-      position: { x: mapElement.x, y: mapElement.y },
-      canvasId: mapElement.id // Use map element ID as canvas ID
-    }));
-
     res.status(HttpStatusCode.Ok).json(new SuccessResponse("Map details retrieved", {
       map: mapDetails,
-      elements: mappedElements
+      elements: mapDetails.mapElements
     }));
   } catch (error) {
     next(error);

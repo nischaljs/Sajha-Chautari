@@ -100,4 +100,32 @@ export interface Space {
     data?: T;
   }
   
+
   
+  export interface Element {
+    id: string;
+    name: string;
+    imageUrl: string;
+    width: number;
+    height: number;
+    static: boolean;
+}
+
+export interface MapElement {
+    element: Element;
+    elementId: string;
+    id: string;
+    mapId: string;
+    x: number;
+    y: number;
+}
+
+export interface CanvasItem {
+    id?: string;
+    unique_elemID: string;
+    elementId?: string;
+    element: Element;
+    position: { x: number; y: number };
+    width: number;
+    height: number;
+}

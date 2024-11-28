@@ -14,6 +14,16 @@ export interface Space {
   users: User[];
 }
 
+export interface MapDetails {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  thumbnail: string | null;
+  dropX: number;
+  dropY: number;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -106,3 +116,31 @@ export interface SocketResponse<T> {
   data?: T;
 }
 
+
+export interface Element {
+  id: string;
+  name: string;
+  imageUrl: string;
+  width: number;
+  height: number;
+  static: boolean;
+}
+
+export interface MapElement {
+  element: Element;
+  elementId: string;
+  id: string;
+  mapId: string;
+  x: number;
+  y: number;
+}
+
+export interface CanvasItem {
+  id?: string;
+  unique_elemID: string;
+  elementId?: string;
+  element: Element;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+}

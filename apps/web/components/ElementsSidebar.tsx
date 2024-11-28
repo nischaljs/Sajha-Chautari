@@ -1,18 +1,10 @@
-
 import React, { useState, useRef, ChangeEvent } from 'react';
 import Image from 'next/image';
 import { Plus, Upload, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import api from '@/utils/axiosInterceptor';
+import { Element } from '@/types/Space';
 
-interface Element {
-    id: string;
-    name: string;
-    imageUrl: string;
-    width: number;
-    height: number;
-    static: boolean;
-}
 interface ElementsSidebarProps {
     objectBaseUrl: string | undefined;
     availableElements: Element[];
@@ -36,7 +28,6 @@ export const ElementsSidebar: React.FC<ElementsSidebarProps> = ({
 
     const elementFileInputRef = useRef<HTMLInputElement>(null);
 
-    // Handle New Element Upload
     const handleNewElementUpload = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -44,7 +35,6 @@ export const ElementsSidebar: React.FC<ElementsSidebarProps> = ({
         }
     };
 
-    // Submit New Element
     const submitNewElement = async () => {
         if (!newElementName || !newElementFile) {
             alert("Please provide element name and image");
@@ -64,7 +54,6 @@ export const ElementsSidebar: React.FC<ElementsSidebarProps> = ({
             });
 
             if (response.data.success) {
-                // Notify parent component of new element
                 onElementCreate(response.data.data);
 
                 // Reset form
@@ -74,14 +63,11 @@ export const ElementsSidebar: React.FC<ElementsSidebarProps> = ({
                 setNewElementHeight(0);
                 setIsStatic(false);
 
-                // Clear file input
                 if (elementFileInputRef.current) {
                     elementFileInputRef.current.value = '';
                 }
 
-                // Exit create mode
                 setIsCreateMode(false);
-
                 alert("Element created successfully!");
             }
         } catch (error) {
@@ -92,19 +78,16 @@ export const ElementsSidebar: React.FC<ElementsSidebarProps> = ({
 
     return (
         <>
-            {/* Collapse toggle button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="absolute right-72 top-1/3 transform -translate-y-1/2 bg-white shadow-lg rounded-l-lg p-2  hover:bg-gray-100"
+                className="absolute right-72 top-1/3 transform -translate-y-1/2 bg-white shadow-lg rounded-l-lg p-2 hover:bg-gray-100"
                 style={{ right: isOpen ? '18rem' : '0' }}
             >
                 {isOpen ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
             </button>
 
-            {/* Sidebar */}
             <div
-                className={`absolute right-0 pt-20 top-0 h-auto max-h-full bg-white shadow-lg transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'
-                    }`}
+                className={`absolute right-0 pt-20 top-0 h-auto max-h-full bg-white shadow-lg transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
                 style={{ width: '18rem' }}
             >
                 <Card className="h-full border-0 rounded-none">
@@ -114,15 +97,14 @@ export const ElementsSidebar: React.FC<ElementsSidebarProps> = ({
                             <button
                                 onClick={() => setIsCreateMode(!isCreateMode)}
                                 className={`p-2 rounded-lg ${isCreateMode
-                                        ? 'bg-red-100 text-red-500 hover:bg-red-200'
-                                        : 'bg-green-100 text-green-500 hover:bg-green-200'
+                                    ? 'bg-red-100 text-red-500 hover:bg-red-200'
+                                    : 'bg-green-100 text-green-500 hover:bg-green-200'
                                     }`}
                             >
                                 {isCreateMode ? <X size={20} /> : <Plus size={20} />}
                             </button>
                         </div>
 
-                        {/* Create Element Form */}
                         {isCreateMode && (
                             <div className="bg-gray-50 p-4 rounded-lg mb-4 border space-y-3">
                                 <h4 className="text-md font-medium">Create New Element</h4>
@@ -188,7 +170,6 @@ export const ElementsSidebar: React.FC<ElementsSidebarProps> = ({
                             </div>
                         )}
 
-                        {/* Elements Grid */}
                         <div className="grid grid-cols-2 gap-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
                             {availableElements.map((element) => (
                                 <div
@@ -218,3 +199,4 @@ export const ElementsSidebar: React.FC<ElementsSidebarProps> = ({
         </>
     );
 };
+

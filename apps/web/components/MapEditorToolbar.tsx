@@ -1,20 +1,23 @@
-import React, { ChangeEvent } from "react";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import React from "react";
+import { ChevronDown, ChevronUp, X, Upload } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { MapDetails } from "@/types/Space";
 
 interface MapEditorToolbarProps {
   isToolbarOpen: boolean;
   setIsToolbarOpen: (open: boolean) => void;
   mapId: string | null;
-  mapName: string;
-  setMapName: (name: string) => void;
-  canvasSize: { width: number; height: number };
-  setCanvasSize: (size: { width: number; height: number }) => void;
+  mapDetails: MapDetails | null;
+  setMapDetails: React.Dispatch<React.SetStateAction<MapDetails | null>>;
   backgroundInputRef: React.RefObject<HTMLInputElement>;
-  handleBackgroundUpload: (e: ChangeEvent<HTMLInputElement>) => void;
+  handleBackgroundUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleMapSubmit: () => void;
   isSubmitting: boolean;
-  canvasItems: any[];
-  removeLastCanvasItem: () => void;
+  mapElements: any[];
+  removeLastMapElement: () => void;
   setShowGrid: () => void;
   showGrid: boolean;
 }
@@ -23,48 +26,60 @@ const MapEditorToolbar: React.FC<MapEditorToolbarProps> = ({
   isToolbarOpen,
   setIsToolbarOpen,
   mapId,
-  mapName,
-  setMapName,
-  canvasSize,
-  setCanvasSize,
+  mapDetails,
+  setMapDetails,
   backgroundInputRef,
   handleBackgroundUpload,
   handleMapSubmit,
   isSubmitting,
-  canvasItems,
-  removeLastCanvasItem,
+  mapElements,
+  removeLastMapElement,
   setShowGrid,
   showGrid,
 }) => {
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (mapDetails) {
+      setMapDetails({ ...mapDetails, name: e.target.value });
+    }
+  };
+
+  const handleSizeChange = (dimension: 'width' | 'height', value: number) => {
+    if (mapDetails) {
+      setMapDetails({ ...mapDetails, [dimension]: value });
+    }
+  };
+
   return (
     <div
-      className={`absolute top-0 left-0 right-0 bg-white shadow-lg rounded-b-lg transition-all duration-300 z-10 border ${
+      className={`fixed top-0 left-0 right-0 bg-background shadow-lg rounded-b-lg transition-all duration-300 z-10 border-b ${
         isToolbarOpen ? "h-auto" : "h-16"
       }`}
     >
       <div className="p-4">
         {/* Toolbar Header */}
-        <div className="flex justify-between items-center border-b pb-3">
-          <h2 className="text-lg font-semibold text-gray-800">
-            Map Editor {mapId && mapId !== "createMap" ? `- ${mapName}` : ""}
+        <div className="flex justify-between items-center pb-3">
+          <h2 className="text-lg font-semibold">
+            Map Editor {mapDetails?.name && `- ${mapDetails.name}`}
           </h2>
           <div className="flex items-center space-x-3">
-            {canvasItems.length > 0 && (
-              <button
-                onClick={removeLastCanvasItem}
-                className="p-2 bg-red-100 hover:bg-red-200 rounded-full text-red-500"
+            {mapElements.length > 0 && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={removeLastMapElement}
                 title="Remove Last Item"
               >
-                <X size={20} />
-              </button>
+                <X className="h-4 w-4" />
+              </Button>
             )}
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => setIsToolbarOpen(!isToolbarOpen)}
-              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full"
               title={isToolbarOpen ? "Collapse Toolbar" : "Expand Toolbar"}
             >
-              {isToolbarOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </button>
+              {isToolbarOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
 
@@ -72,96 +87,82 @@ const MapEditorToolbar: React.FC<MapEditorToolbarProps> = ({
         {isToolbarOpen && (
           <div className="mt-4 space-y-6">
             {/* Form Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  Map Name
-                </label>
-                <input
-                  type="text"
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="mapName">Map Name</Label>
+                <Input
+                  id="mapName"
                   placeholder="Map Name"
-                  value={mapName}
-                  onChange={(e) => setMapName(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  value={mapDetails?.name || ""}
+                  onChange={handleNameChange}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  Width
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="mapWidth">Width</Label>
+                <Input
+                  id="mapWidth"
                   type="number"
                   placeholder="Width"
-                  value={canvasSize.width || ""}
-                  onChange={(e) =>
-                    setCanvasSize({
-                      ...canvasSize,
-                      width: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  value={mapDetails?.width || ""}
+                  onChange={(e) => handleSizeChange('width', parseInt(e.target.value) || 0)}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  Height
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="mapHeight">Height</Label>
+                <Input
+                  id="mapHeight"
                   type="number"
                   placeholder="Height"
-                  value={canvasSize.height || ""}
-                  onChange={(e) =>
-                    setCanvasSize({
-                      ...canvasSize,
-                      height: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  value={mapDetails?.height || ""}
+                  onChange={(e) => handleSizeChange('height', parseInt(e.target.value) || 0)}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  Background
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={backgroundInputRef}
-                  onChange={handleBackgroundUpload}
-                  className="w-full text-gray-600"
-                />
+              <div className="space-y-2">
+                <Label htmlFor="mapBackground">Background</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="mapBackground"
+                    type="file"
+                    accept="image/*"
+                    ref={backgroundInputRef}
+                    onChange={handleBackgroundUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => backgroundInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Image
+                  </Button>
+                </div>
               </div>
             </div>
 
             {/* Toggle Grid */}
-            <div className="flex items-center space-x-3">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showGrid}
-                  onChange={() => setShowGrid()}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                <span className="ml-3 text-sm font-medium text-gray-900">
-                  {showGrid ? "Show Grid" : "Hide Grid"}
-                </span>
-              </label>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="show-grid"
+                checked={showGrid}
+                onCheckedChange={setShowGrid}
+              />
+              <Label htmlFor="show-grid">
+                {showGrid ? "Hide Grid" : "Show Grid"}
+              </Label>
             </div>
 
             {/* Submit Row */}
             <div className="flex justify-end">
-              <button
+              <Button
                 onClick={handleMapSubmit}
                 disabled={isSubmitting}
-                className="px-6 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 disabled:opacity-50 transition"
               >
                 {isSubmitting
                   ? "Submitting..."
                   : mapId && mapId !== "createMap"
-                  ? "Update"
-                  : "Create"}
-              </button>
+                  ? "Update Map"
+                  : "Create Map"}
+              </Button>
             </div>
           </div>
         )}
