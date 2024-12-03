@@ -1,10 +1,8 @@
-import React, { useState, ChangeEvent, FormEvent } from 'react';
-import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Toast } from '@/components/ui/toast'; 
 import api from '@/utils/axiosInterceptor';
-import { ToastDescription } from '@radix-ui/react-toast';
+import { X } from 'lucide-react';
+import React, { ChangeEvent, FormEvent, useState } from 'react';
 
 interface AddAvatarPopupProps {
   onclose: () => void;

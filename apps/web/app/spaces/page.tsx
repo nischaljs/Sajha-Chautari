@@ -44,7 +44,7 @@ export default function SpacesPage() {
   async function fetchPublicSpaces() {
     try {
       const response = await api.get("/spaces/public");
-      
+
       if (!response?.data?.success) {
         throw new Error("Failed to fetch public spaces");
       }
@@ -71,7 +71,7 @@ export default function SpacesPage() {
   const handleProfileUpdate = (updatedUser: any) => {
     // This function would typically update your user context
     // Implement according to your user state management approach
-    
+
     // You might want to refresh the page or update the user context here
     window.location.reload(); // Simple solution - you might want to implement a more elegant solution
   };
@@ -127,18 +127,20 @@ export default function SpacesPage() {
               </p>
             </div>
             <div className="flex gap-4">
-              <Button 
-                onClick={() => router.push("/spaces/create")} 
+              <Button
+                onClick={() => router.push("/spaces/create")}
                 size="lg"
                 disabled={!user?.nickname}
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Create Space
               </Button>
-              <ProfileEditor 
-                user={user} 
-                onProfileUpdate={handleProfileUpdate}
-              />
+              {user && (
+                <ProfileEditor
+                  user={user}
+                  onProfileUpdate={handleProfileUpdate}
+                />
+              )}
             </div>
           </div>
 
@@ -173,7 +175,7 @@ export default function SpacesPage() {
                     <p className="text-gray-500 text-center max-w-sm mb-6">
                       {emptyState.description}
                     </p>
-                    <Button 
+                    <Button
                       onClick={() => router.push(emptyState.actionPath)}
                       disabled={!user?.nickname}
                     >
@@ -182,10 +184,10 @@ export default function SpacesPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <SpacesCard 
-                  user={user} 
-                  filteredSpaces={displaySpaces} 
-                  router={router} 
+                <SpacesCard
+                  user={user}
+                  filteredSpaces={displaySpaces}
+                  router={router}
                 />
               )}
             </div>

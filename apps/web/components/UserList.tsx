@@ -64,20 +64,21 @@ const UserList: React.FC<UserListProps> = ({ users = [], currentUserId }) => {
                                         <li
                                             key={user.id}
                                             className={`flex items-center p-2.5 rounded-lg ${user.id === currentUserId
-                                                    ? "bg-indigo-50 border border-indigo-100"
-                                                    : "hover:bg-gray-50"
+                                                ? "bg-indigo-50 border border-indigo-100"
+                                                : "hover:bg-gray-50"
                                                 } transition-all duration-200`}
                                         >
                                             <div className="relative">
-                                                <img
+                                                {avatarsBaseUrl &&
+                                                    <img
 
-                                                    src={avatarsBaseUrl + user.avatar.imageUrl || DEFAULT_AVATAR_URL}
-                                                    alt={`${user.nickname || "User"}'s avatar`}
-                                                    className="w-10 h-10 rounded-full object-cover ring-2 ring-white"
-                                                    onError={(e) => {
-                                                        (e.target as HTMLImageElement).src = DEFAULT_AVATAR_URL;
-                                                    }}
-                                                />
+                                                        src={avatarsBaseUrl + user.avatar!.imageUrl || DEFAULT_AVATAR_URL}
+                                                        alt={`${user.nickname || "User"}'s avatar`}
+                                                        className="w-10 h-10 rounded-full object-cover ring-2 ring-white"
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).src = DEFAULT_AVATAR_URL;
+                                                        }}
+                                                    />}
                                                 <Circle
                                                     size={10}
                                                     className="absolute bottom-0 right-0 fill-green-400 text-white"

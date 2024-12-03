@@ -1,17 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
 import { DraggableCanvas } from "@/components/DraggableCanvas";
 import { DraggableItem } from "@/components/DraggableItem";
 import { ElementsSidebar } from "@/components/ElementsSidebar";
+import IsSaving from "@/components/IsSaving";
 import MapEditorToolbar from "@/components/MapEditorToolbar";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { Element, MapDetails, MapElement } from "@/types/Space";
 import api from "@/utils/axiosInterceptor";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { Minimap } from "@/components/MiniMap";
-import { useAutoSave } from "@/hooks/useAutoSave";
-import IsSaving from "@/components/IsSaving";
-import { Element, MapDetails, MapElement, GameMap as MapType } from "@/types/Space";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const MapEditor: React.FC = () => {
     const mapBaseUrl = process.env.NEXT_PUBLIC_HTTP_MAP;
@@ -24,7 +23,7 @@ const MapEditor: React.FC = () => {
     const [mapDetails, setMapDetails] = useState<MapDetails | null>(null);
     const [mapElements, setMapElements] = useState<MapElement[]>([]);
     const [showGrid, setShowGrid] = useState(true);
-    const [gridSize, setGridSize] = useState(32);
+    const [gridSize] = useState(32);
     const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [dropNewElem, setDropNewElem] = useState(false);
@@ -63,7 +62,7 @@ const MapEditor: React.FC = () => {
     }, [fetchMapDetails]);
 
     useEffect(() => {
-        const fetchElements = async () => {
+        const fetchElements : any = async () => {
             try {
                 const response = await api.get("/spaces/elements");
                 if (response.data.success) {

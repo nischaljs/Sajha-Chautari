@@ -97,7 +97,7 @@ export default function LoginPage() {
             </button>
           </div>
           <p>
-            Don't have an account?, then lets{" "}
+            Don&apos;t have an account?, then lets{" "}
             <Link href={"/login"} className="text-blue-600 underline">
               login
             </Link>

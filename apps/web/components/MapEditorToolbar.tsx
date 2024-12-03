@@ -1,10 +1,10 @@
-import React from "react";
-import { ChevronDown, ChevronUp, X, Upload } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { MapDetails } from "@/types/Space";
+import { MapDetails, MapElement } from "@/types/Space";
+import { ChevronDown, ChevronUp, Upload, X } from 'lucide-react';
+import React from "react";
 
 interface MapEditorToolbarProps {
   isToolbarOpen: boolean;
@@ -16,7 +16,7 @@ interface MapEditorToolbarProps {
   handleBackgroundUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleMapSubmit: () => void;
   isSubmitting: boolean;
-  mapElements: any[];
+  mapElements: MapElement[];
   removeLastMapElement: () => void;
   setShowGrid: () => void;
   showGrid: boolean;

@@ -1,25 +1,24 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
-import { useParams } from "next/navigation";
 import Canvas from "@/components/Canvas";
+import { MiniMapUser } from "@/components/MiniMapUser";
 import { Card } from "@/components/ui/card";
 import UserList from "@/components/UserList";
 import { useUserContextState } from "@/context/UserContext";
-import api from "@/utils/axiosInterceptor";
-import { mapBaseUrl } from "@/utils/Links";
 import {
   GameState,
+  MapElement,
   Position,
   SocketResponse,
   SpaceDetailsResponse,
   SpaceElement,
-  SpaceElements,
-  MapElement
+  SpaceElements
 } from "@/types/Space";
 import { User } from "@/types/User";
-import { Minimap } from "@/components/MiniMap";
-import { MiniMapUser } from "@/components/MiniMapUser";
+import api from "@/utils/axiosInterceptor";
+import { mapBaseUrl } from "@/utils/Links";
+import { useParams } from "next/navigation";
+import React, { useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
 
 const initialGameState: GameState = {
   users: [],

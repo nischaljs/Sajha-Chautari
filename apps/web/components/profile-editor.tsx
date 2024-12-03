@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,19 +14,21 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useForm } from "react-hook-form";
+import { User } from '@/types/User';
 import api from "@/utils/axiosInterceptor";
-import { Loader2 } from "lucide-react";
 import { avatarsBaseUrl } from '@/utils/Links';
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { useForm } from "react-hook-form";
 
-const ProfileEditor = ({ user, onProfileUpdate }:{user:any, onProfileUpdate:any}) => {
+const ProfileEditor = ({ user, onProfileUpdate }:{user:User, onProfileUpdate: (arg0: User)=> void}) => {
   const [open, setOpen] = useState(false);
   const [avatars, setAvatars] = useState([]);
   const [loading, setLoading] = useState(false);

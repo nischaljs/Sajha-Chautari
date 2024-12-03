@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Position, SpaceElements, User } from "@/types/Space";
 import { avatarsBaseUrl, objectsBaseUrl } from "@/utils/Links";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 interface CanvasProps {
   users: User[];
