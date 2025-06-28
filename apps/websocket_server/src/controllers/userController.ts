@@ -1,5 +1,4 @@
 import { Server, Socket } from "socket.io";
-import { userService } from "../services/userService";
 
 // Define User State
 export interface UserState {
@@ -21,9 +20,9 @@ export interface UserState {
 
 // Configuration
 const SPAWN_CONFIG = {
-  MIN_DISTANCE: 150, // Minimum distance between spawned users
+  MIN_DISTANCE: 100, // Minimum distance between spawned users
   SPAWN_ATTEMPTS: 10, // Maximum attempts to find a valid spawn position
-  SPAWN_RADIUS: 140, // Radius to look for alternative spawn positions
+  SPAWN_RADIUS: 150, // Radius to look for alternative spawn positions
 };
 
 // State Management
@@ -56,6 +55,8 @@ const isValidPosition = (
   spaceId: string,
   minDistance: number
 ): boolean => {
+  if (!userStates[spaceId]) return true;
+  
   for (const userState of userStates[spaceId].values()) {
     if (calculateDistance(position, userState.position) < minDistance) {
       return false;
@@ -67,32 +68,34 @@ const isValidPosition = (
 // Generate a new spawn position
 const generateSpawnPosition = (
   basePosition: { x: number; y: number },
-  attempt: number
+  attempt: number,
+  mapData: any
 ): { x: number; y: number } => {
   if (attempt === 0) return basePosition;
 
   const angle = Math.random() * 2 * Math.PI;
   const distance = Math.random() * SPAWN_CONFIG.SPAWN_RADIUS;
   
-  return {
-    x: basePosition.x + distance * Math.cos(angle),
-    y: basePosition.y + distance * Math.sin(angle),
-  };
+  const newX = Math.max(50, Math.min(basePosition.x + distance * Math.cos(angle), mapData.width - 50));
+  const newY = Math.max(50, Math.min(basePosition.y + distance * Math.sin(angle), mapData.height - 50));
+  
+  return { x: newX, y: newY };
 };
 
 // Find a valid spawn position
 const findValidSpawnPosition = (
   basePosition: { x: number; y: number },
-  spaceId: string
+  spaceId: string,
+  mapData: any
 ): { x: number; y: number } => {
   for (let i = 0; i < SPAWN_CONFIG.SPAWN_ATTEMPTS; i++) {
-    const testPosition = generateSpawnPosition(basePosition, i);
+    const testPosition = generateSpawnPosition(basePosition, i, mapData);
     if (isValidPosition(testPosition, spaceId, SPAWN_CONFIG.MIN_DISTANCE)) {
       return testPosition;
     }
   }
   // If no valid position found, return a position slightly offset from base
-  return generateSpawnPosition(basePosition, 1);
+  return generateSpawnPosition(basePosition, 1, mapData);
 };
 
 const createUserState = async (
@@ -102,21 +105,21 @@ const createUserState = async (
 ): Promise<UserState> => {
   const user = socket.data.user || userData;
   const basePosition = {
-    x: socket.data.mapData.dropX,
-    y: socket.data.mapData.dropY
+    x: socket.data.mapData?.dropX || 400,
+    y: socket.data.mapData?.dropY || 300
   };
 
   // Find a valid spawn position
-  const validPosition = findValidSpawnPosition(basePosition, socket.data.spaceId);
+  const validPosition = findValidSpawnPosition(basePosition, socket.data.spaceId, socket.data.mapData);
 
   return {
     id: userId,
-    email: user.email || "",
-    nickname: user.nickname || "Guest",
-    avatarId: user.avatarId,
+    email: user?.email || "",
+    nickname: user?.nickname || "Guest",
+    avatarId: user?.avatarId,
     position: validPosition,
     lastMoveTimestamp: Date.now(),
-    avatar: user.avatar || { id: "", imageUrl: "", name: "" },
+    avatar: user?.avatar || { id: "", imageUrl: "", name: "" },
   };
 };
 
@@ -133,6 +136,8 @@ export const onUserConnected = async (socket: Socket, io: Server) => {
     userStates[spaceId].set(userId, userState);
 
     const existingUsers = Array.from(userStates[spaceId].values());
+    
+    // Send initialization data to the connecting user
     socket.emit("initialize_space", {
       success: true,
       data: {
@@ -141,15 +146,19 @@ export const onUserConnected = async (socket: Socket, io: Server) => {
       }
     });
 
-    socket.broadcast.to(spaceId).emit("join_space", {
+    // Notify other users about the new user
+    socket.broadcast.to(spaceId).emit("user_joined", {
       success: true,
       data: {
-        user: socket.data.user
+        user: userState,
+        users: existingUsers
       }
     });
+
+    console.log(`User ${userId} connected to space ${spaceId}`);
   } catch (error) {
     console.error("Error in onUserConnected:", error);
-    socket.emit("join_space", { success: false, error: "Failed to join space" });
+    socket.emit("connection_error", { success: false, error: "Failed to join space" });
   }
 };
 
@@ -157,21 +166,27 @@ export const onUserDisconnected = async (socket: Socket, io: Server) => {
   const { spaceId, userId } = socket.data;
 
   try {
-    roomUsers[spaceId]?.delete(userId);
-    userStates[spaceId]?.delete(userId);
+    if (roomUsers[spaceId]) {
+      roomUsers[spaceId].delete(userId);
+    }
+    if (userStates[spaceId]) {
+      userStates[spaceId].delete(userId);
+    }
 
     cleanupRoom(spaceId);
 
-    socket.broadcast.to(spaceId).emit("leave_space", {
+    // Notify remaining users about the disconnection
+    socket.broadcast.to(spaceId).emit("user_left", {
       success: true,
       data: {
-        id: userId,
+        userId: userId,
         users: Array.from(userStates[spaceId]?.values() || [])
       }
     });
+    
     socket.leave(spaceId);
+    console.log(`User ${userId} disconnected from space ${spaceId}`);
   } catch (error) {
     console.error("Error in onUserDisconnected:", error);
-    socket.emit("leave_space", { success: false, error: "Failed to leave space" });
   }
 };

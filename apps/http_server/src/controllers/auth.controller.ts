@@ -25,7 +25,7 @@ export const registerController = async (
     if (!parseResult.success) {
       throw new AppError(
         HttpStatusCode.BadRequest,
-        "Invalid email or password fromat",
+        "Invalid email or password format",
       );
     }
 
@@ -35,7 +35,7 @@ export const registerController = async (
     });
 
     if (existingUser) {
-      throw new AppError(HttpStatusCode.BadRequest, "Email already registered");
+      throw new AppError(HttpStatusCode.BadRequest, "Email is already in use");
     }
 
     const hashedPassword = await hashPassword(parseResult.data.password);
@@ -52,7 +52,7 @@ export const registerController = async (
 
     res
       .status(HttpStatusCode.Created)
-      .json(new SuccessResponse("User created succesfully", { token }));
+      .json(new SuccessResponse("User created successfully", { token, userId: user.id }));
   } catch (error: any) {
     next(error);
   }
@@ -67,9 +67,17 @@ export const loginController = async (
     const parseResult = userSchema.safeParse(req.body);
 
     if (!parseResult.success) {
+      const errors = parseResult.error.errors.map(err => {
+        if (err.path[0] === 'email') return "Email is required";
+        if (err.path[0] === 'password') return "Password is required";
+        if (err.code === 'invalid_string' && err.validation === 'email') return "Invalid email format";
+        if (err.code === 'too_small') return "Password is too weak";
+        return err.message;
+      });
+      
       throw new AppError(
         HttpStatusCode.BadRequest,
-        "Email or Password format is incorrect",
+        errors[0] || "Invalid email or password format",
       );
     }
 
@@ -80,7 +88,7 @@ export const loginController = async (
     });
 
     if (!user) {
-      throw new AppError(HttpStatusCode.Forbidden, "Invalid credentials");
+      throw new AppError(HttpStatusCode.Unauthorized, "Invalid email or password");
     }
 
     const isPasswordCorrect = await compare(
@@ -89,14 +97,14 @@ export const loginController = async (
     );
 
     if (!isPasswordCorrect) {
-      throw new AppError(HttpStatusCode.Forbidden, "Invalid credentials");
+      throw new AppError(HttpStatusCode.Unauthorized, "Invalid email or password");
     }
 
     const token = generateJWTToken({ userId: user.id, role: user.role });
 
     res
       .status(HttpStatusCode.Ok)
-      .json({ success: true, message: "Login successful", data: { token } });
+      .json({ success: true, message: "Login successful", data: { token, userId: user.id } });
   } catch (err) {
     next(err);
   }
@@ -110,7 +118,7 @@ export const tokenVerifierController = (
   try {
     res
       .status(HttpStatusCode.Ok)
-      .json(new SuccessResponse("authenticated succesffuly", {}));
+      .json(new SuccessResponse("authenticated successfully", {}));
   } catch (error) {
     next(error);
   }

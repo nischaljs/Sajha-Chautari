@@ -1,11 +1,9 @@
 import { Server, Socket } from "socket.io";
-import api from "../services/api";
 import { userStates, UserState } from "./userController";
 
-
 // Constants for movement validation
-// const MOVEMENT_THRESHOLD = 50; // Maximum allowed movement distance per update
-// const POSITION_UPDATE_INTERVAL = 100; // Minimum time between position updates in ms
+const MOVEMENT_THRESHOLD = 200; // Maximum allowed movement distance per update
+const POSITION_UPDATE_INTERVAL = 50; // Minimum time between position updates in ms
 
 interface MovementData {
   x: number;
@@ -22,7 +20,7 @@ interface PositionState {
 const lastValidPositions: Map<string, PositionState> = new Map();
 
 export function handleMovement(socket: Socket, io: Server) {
-  socket.on("movement", async (data: { x: number; y: number; timestamp: number }) => {
+  socket.on("movement", async (data: MovementData) => {
     const { x, y, timestamp } = data;
     const spaceId = socket.data.spaceId;
     const userId = socket.data.userId;
@@ -46,38 +44,40 @@ export function handleMovement(socket: Socket, io: Server) {
       
       const timeSinceLastUpdate = timestamp - lastValidPosition.lastUpdate;
       
-      // if (timeSinceLastUpdate < POSITION_UPDATE_INTERVAL) {
-      //   socket.emit("movementResult", {
-      //     success: false,
-      //     message: "Movement too frequent",
-      //     data: {
-      //       newCoordinates: lastValidPosition,
-      //       users: Array.from(userStates[spaceId].values()),
-      //       timestamp: lastValidPosition.lastUpdate
-      //     }
-      //   });
-      //   return;
-      // }
+      // Rate limiting
+      if (timeSinceLastUpdate < POSITION_UPDATE_INTERVAL) {
+        socket.emit("movementResult", {
+          success: false,
+          message: "Movement too frequent",
+          data: {
+            newCoordinates: lastValidPosition,
+            users: Array.from(userStates[spaceId].values()),
+            timestamp: lastValidPosition.lastUpdate
+          }
+        });
+        return;
+      }
       
-      
+      // Distance validation
       const distance = Math.sqrt(
         Math.pow(x - lastValidPosition.x, 2) + 
         Math.pow(y - lastValidPosition.y, 2)
       );
 
-      // if (distance > MOVEMENT_THRESHOLD) {
-      //   socket.emit("movementResult", {
-      //     success: false,
-      //     message: "Invalid movement distance",
-      //     data: {
-      //       newCoordinates: lastValidPosition,
-      //       users: Array.from(userStates[spaceId].values()),
-      //       timestamp: lastValidPosition.lastUpdate
-      //     }
-      //   });
-      //   return;
-      // }
+      if (distance > MOVEMENT_THRESHOLD) {
+        socket.emit("movementResult", {
+          success: false,
+          message: "Invalid movement distance",
+          data: {
+            newCoordinates: lastValidPosition,
+            users: Array.from(userStates[spaceId].values()),
+            timestamp: lastValidPosition.lastUpdate
+          }
+        });
+        return;
+      }
       
+      // Boundary validation
       if (x < 0 || x > mapData.width || y < 0 || y > mapData.height) {
         socket.emit("movementResult", {
           success: false,
@@ -91,23 +91,19 @@ export function handleMovement(socket: Socket, io: Server) {
         return;
       }
 
-      
-      
-      
-      
-    
+      // Check for collisions with other users
+      const isCollidingWithUser = Array.from(userStates[spaceId].values()).some((user) => {
+        if (user.id === userId) return false;
+        const distX = x - user.position.x;
+        const distY = y - user.position.y;
+        const distance = Math.sqrt(distX * distX + distY * distY);
+        return distance < 80; // Collision threshold
+      });
 
-      // Check position availability
-      const isOccupied = await checkPositionAvailability(
-        { x, y },
-        mapData.width,
-        mapData.height
-      );
-
-      if (isOccupied) {
+      if (isCollidingWithUser) {
         socket.emit("movementResult", {
           success: false,
-          message: "Position is occupied",
+          message: "Position is occupied by another user",
           data: {
             newCoordinates: currentState.position,
             users: Array.from(userStates[spaceId].values()),
@@ -124,10 +120,16 @@ export function handleMovement(socket: Socket, io: Server) {
         lastMoveTimestamp: timestamp
       };
       userStates[spaceId].set(userId, updatedState);
+      
+      // Update last valid position
+      lastValidPositions.set(userId, {
+        x, y,
+        lastUpdate: timestamp
+      });
+
       const allUsers = Array.from(userStates[spaceId].values());
 
-    
-      // Emit to all users including the moving user
+      // Emit to the moving user
       socket.emit("movementResult", {
         success: true,
         data: {
@@ -137,14 +139,12 @@ export function handleMovement(socket: Socket, io: Server) {
         }
       });
 
-
-    
-
+      // Emit to other users in the space
       socket.broadcast.to(spaceId).emit("others_move", {
         success: true,
         data: {
           newCoordinates: { x, y },
-          movedUserId:userId,
+          movedUserId: userId,
           timestamp
         }
       });
@@ -162,12 +162,4 @@ export function handleMovement(socket: Socket, io: Server) {
       });
     }
   });
-}
-
-async function checkPositionAvailability(
-  position: { x: number; y: number },
-  width: number,
-  height: number
-): Promise<boolean> {
- return false;
 }
