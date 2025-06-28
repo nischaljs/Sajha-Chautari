@@ -5,18 +5,27 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:generate-types": "supabase gen types typescript --local > types/supabase.ts",
+    "db:generate": "cd packages/db && npm run db:generate",
+    "db:push": "cd packages/db && npm run db:push",
+    "db:seed": "cd packages/db && npx prisma db seed"
   },
   "devDependencies": {
     "prettier": "^3.2.5",
     "turbo": "^2.2.3",
-    "typescript": "5.5.4"
+    "typescript": "5.5.4",
+    "supabase": "^1.200.3"
   },
   "packageManager": "pnpm@8.15.6",
   "engines": {
     "node": ">=18"
   },
-  "prisma":{
-    "schema" : "./packages/db/prisma/schema.prisma"
+  "prisma": {
+    "schema": "./packages/db/prisma/schema.prisma",
+    "seed": "tsx supabase/seed.sql"
   }
 }
